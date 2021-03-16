@@ -29,6 +29,17 @@ project(GCYLON LANGUAGES CXX CUDA)
 
 set(GCYLON_VERSION 0.2.0)
 
+message("CONDA_PREFIX: " $ENV{CONDA_PREFIX})
+if (NOT DEFINED ENV{CONDA_PREFIX})
+    message(SEND_ERROR "Conda environment is not active. CONDA_PREFIX is not set." )
+endif ()
+
+message("CYLON_HOME: " $ENV{CYLON_HOME})
+if (NOT DEFINED ENV{CYLON_HOME})
+    message(SEND_ERROR "CYLON_HOME not set as an environment variable.." )
+endif ()
+
+
 set(WITHOUT_CUDA OFF)
 
 ## defaults to release build
@@ -97,8 +108,8 @@ find_package(CUDAToolkit REQUIRED)
 message("CUDAToolkit_INCLUDE_DIRS: " ${CUDAToolkit_INCLUDE_DIRS})
 
 # root include directory
-SET(CONDA_DIR /home/auyar/anaconda3/envs/cudf_dev/)
-SET(CYLON_DIR /home/auyar/projects/cylon/)
+SET(CONDA_DIR $ENV{CONDA_PREFIX})
+SET(CYLON_DIR $ENV{CYLON_HOME})
 
 include_directories(
         ${CONDA_DIR}/include
