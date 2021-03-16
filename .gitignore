@@ -4,3 +4,7 @@
 *.ptx
 *.cubin
 *.fatbin
+
+cpp/cmake-build-debug
+build
+
