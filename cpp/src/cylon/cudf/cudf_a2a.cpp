@@ -175,32 +175,6 @@ PartColumnView::PartColumnView(const cudf::column_view &cv, const std::vector<cu
         }
         // synch on the default stream
         cudaStreamSynchronize(0);
-
-        // get offset from the gpu to the cpu one by one
-//        std::vector<cudf::size_type> partCharOffsets1{};
-//        for (long unsigned int i = 0; i < partIndexes.size(); ++i) {
-//            cudf::size_type offset = getInt(scv->offsets().data<uint8_t>() + offsetDataTypeSize * partIndexes[i]);
-//            partCharOffsets1.push_back(offset);
-//        }
-
-        //get all offset array to the cpu at once, transfers unnecessary data
-//        std::vector<cudf::size_type> partCharOffsets2{};
-//        int strOffsetsSize = scv->offsets().size();
-//        auto strOffsetsArray = std::make_unique<int32_t []>(strOffsetsSize);
-//        cudaMemcpy(strOffsetsArray.get(),
-//                   scv->offsets().data<int32_t>(),
-//                   strOffsetsSize * cudf::size_of(scv->offsets().type()),
-//                   cudaMemcpyDeviceToHost);
-//        for (long unsigned int i = 0; i < partIndexes.size(); ++i) {
-//            partCharOffsets2.push_back(strOffsetsArray[partIndexes[i]]);
-//        }
-//
-//        for (int i = 0; i < partCharOffsets2.size(); ++i) {
-//            if (partCharOffsets[i] != partCharOffsets2[i]) {
-//                std::cout << "i: " << i << ", offset1: " << partCharOffsets[i] << ", offset2: " << partCharOffsets2[i] << "\n";
-//                throw "offsets are not equal";
-//            }
-//        }
     }
 
     if (cv.nullable()) {
