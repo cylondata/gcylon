@@ -15,6 +15,8 @@
 #include <cudf/binaryop.hpp>
 #include <cudf/scalar/scalar.hpp>
 
+namespace gcylon {
+
 //////////////////////////////////////////////////////////////////////
 // global types and fuctions
 //////////////////////////////////////////////////////////////////////
@@ -697,3 +699,5 @@ bool CudfAllToAll::onSendComplete(int target, const void *buffer, int length) {
 //  LOG(INFO) << myrank << ", SendComplete with length: " << length << " for the target: " << target;
   return true;
 }
+
+}// end of namespace gcylon

@@ -4,19 +4,24 @@
 
 #include "gtable.hpp"
 #include "util.hpp"
+#include "util/macros.hpp"
 
 #include <glog/logging.h>
 #include <chrono>
 #include <thread>
 
 #include <net/mpi/mpi_communicator.hpp>
+
+
 #include <cudf/table/table.hpp>
 #include <cudf/partitioning.hpp>
 #include <cudf/concatenate.hpp>
 #include <cudf/strings/strings_column_view.hpp>
-
+#include <cudf/join.hpp>
 #include <cudf/io/csv.hpp>
 //#include <cuda_runtime.h>
+
+namespace gcylon {
 
 GTable::GTable(std::shared_ptr<cudf::table> &tab, std::shared_ptr<cylon::CylonContext> &ctx)
     : id_("0"), table_(tab), ctx(ctx) {}
@@ -139,3 +144,77 @@ cylon::Status Shuffle(std::shared_ptr<GTable> &table,
 
     return GTable::FromCudfTable(ctx, table_out, output);
 }
+
+cylon::Status joinTables(std::shared_ptr<GTable> &left,
+                         std::shared_ptr<GTable> &right,
+                         const cylon::join::config::JoinConfig &join_config,
+                         std::shared_ptr<GTable> &joinedTable) {
+
+    if (left == nullptr) {
+        return cylon::Status(cylon::Code::KeyError, "Couldn't find the left table");
+    } else if (right == nullptr) {
+        return cylon::Status(cylon::Code::KeyError, "Couldn't find the right table");
+    }
+
+    if(join_config.GetAlgorithm() == cylon::join::config::JoinAlgorithm::SORT) {
+        return cylon::Status(cylon::Code::NotImplemented, "SORT join is not supported on GPUs yet.");
+    }
+
+    std::shared_ptr<cylon::CylonContext> ctx = left->GetContext();
+    // todo: should joined columns repeat on the joined table or not
+    std::vector<std::pair<cudf::size_type, cudf::size_type>> columns_in_common{};
+    std::shared_ptr<cudf::table> joined;
+
+    if(join_config.GetType() == cylon::join::config::JoinType::INNER) {
+       joined = cudf::inner_join(left->GetCudfTable()->view(),
+                                 right->GetCudfTable()->view(),
+                                 join_config.GetLeftColumnIdx(),
+                                 join_config.GetRightColumnIdx(),
+                                 columns_in_common);
+    } else if (join_config.GetType() == cylon::join::config::JoinType::LEFT) {
+        joined = cudf::left_join(left->GetCudfTable()->view(),
+                                  right->GetCudfTable()->view(),
+                                  join_config.GetLeftColumnIdx(),
+                                  join_config.GetRightColumnIdx(),
+                                  columns_in_common);
+    } else if (join_config.GetType() == cylon::join::config::JoinType::RIGHT) {
+        joined = cudf::left_join(right->GetCudfTable()->view(),
+                                 left->GetCudfTable()->view(),
+                                 join_config.GetRightColumnIdx(),
+                                 join_config.GetLeftColumnIdx(),
+                                 columns_in_common);
+    } else if (join_config.GetType() == cylon::join::config::JoinType::FULL_OUTER) {
+        joined = cudf::full_join(left->GetCudfTable()->view(),
+                                 right->GetCudfTable()->view(),
+                                 join_config.GetLeftColumnIdx(),
+                                 join_config.GetRightColumnIdx(),
+                                 columns_in_common);
+    }
+
+    RETURN_CYLON_STATUS_IF_FAILED(GTable::FromCudfTable(ctx, joined, joinedTable));
+    return cylon::Status::OK();
+}
+
+
+cylon::Status DistributedJoin(std::shared_ptr<GTable> &left,
+                              std::shared_ptr<GTable> &right,
+                              const cylon::join::config::JoinConfig &join_config,
+                              std::shared_ptr<GTable> &output) {
+
+    std::shared_ptr<cylon::CylonContext> ctx = left->GetContext();
+    if (ctx->GetWorldSize() == 1) {
+        // perform single join
+        return joinTables(left, right, join_config, output);
+    }
+
+    std::shared_ptr<GTable> left_shuffled_table, right_shuffled_table;
+    RETURN_CYLON_STATUS_IF_FAILED(Shuffle(left, join_config.GetLeftColumnIdx(), left_shuffled_table));
+
+    RETURN_CYLON_STATUS_IF_FAILED(Shuffle(right, join_config.GetRightColumnIdx(), right_shuffled_table));
+
+    RETURN_CYLON_STATUS_IF_FAILED(joinTables(left_shuffled_table, right_shuffled_table, join_config, output));
+
+    return cylon::Status::OK();
+}
+
+}// end of namespace gcylon

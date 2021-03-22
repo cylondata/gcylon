@@ -18,6 +18,7 @@
 using std::cout;
 using std::endl;
 using std::string;
+using namespace gcylon;
 
 std::unique_ptr<cudf::column> emptyLike(cudf::column_view const& input){
     int dl = dataLength(input);
