@@ -20,7 +20,7 @@ namespace gcylon {
 //////////////////////////////////////////////////////////////////////
 // global types and fuctions
 //////////////////////////////////////////////////////////////////////
-// sizes of cudf types in tables
+// sizes of cudf data types
 // ref: type_id in cudf/types.hpp
 int type_bytes[] = {0, 1, 2, 4, 8, 1, 2, 4, 8, 4, 8, 1, 4, 8, 8, 8, 8, 4, 8, 8, 8, 8, -1, -1, -1, 4, 8, -1, -1};
 
@@ -57,19 +57,6 @@ cudf::size_type dataLength(cudf::column_view const& cw){
 
     // even null values exist in the buffer with unspecified values
     return elementSize * cw.size();
-}
-
-/**
- * get one int value from device to host
- * todo: make it template type
- * @param buff
- * @return
- */
-int32_t getInt(const uint8_t * buff) {
-    uint8_t *hostArray= new uint8_t[4];
-    cudaMemcpy(hostArray, buff, 4, cudaMemcpyDeviceToHost);
-    int32_t * hdata = (int32_t *) hostArray;
-    return hdata[0];
 }
 
 //////////////////////////////////////////////////////////////////////
@@ -206,7 +193,6 @@ int PartColumnView::getDataBufferSize(int partIndex) {
 const uint8_t * PartColumnView::getOffsetBuffer(int partIndex) {
     if (cv.type().id() == cudf::type_id::STRING) {
         return scv->offsets().data<uint8_t>() + partIndexes[partIndex] * cudf::size_of(scv->offsets().type());
-//        return (uint8_t *)(strOffsetArrays.at(partIndex).get());
     }
 
     return nullptr;
@@ -543,7 +529,7 @@ void CudfAllToAll::constructColumn(std::shared_ptr<PendingReceives> pr) {
         auto cdt = cudf::data_type{cudf::type_id::INT8};
         auto charsColumn = std::make_unique<cudf::column>(cdt, pr->dataBufferLen, *dataBuffer);
 
-        int32_t offBase = getInt((uint8_t *)offsetsBuffer->data());
+        int32_t offBase = getScalar<int32_t>((uint8_t *)offsetsBuffer->data());
         // todo: can offsets start from non zero values in non-partitioned tables
         //       we need to make sure of this
         if (offBase > 0) {
@@ -554,7 +540,7 @@ void CudfAllToAll::constructColumn(std::shared_ptr<PendingReceives> pr) {
         auto offsetsColumn = std::make_unique<cudf::column>(odt, pr->dataSize + 1, *offsetsBuffer);
 
         // this creates a new buffer, so less efficient
-        // int32_t offsetBase = getInt((uint8_t *)offsetsBuffer->data());
+        // int32_t offsetBase = getScalar<int32_t>((uint8_t *)offsetsBuffer->data());
 //        if (offsetBase > 0) {
 //            auto base = std::make_unique<cudf::numeric_scalar<int32_t>>(offsetBase, true);
 //            offsetsColumn =
