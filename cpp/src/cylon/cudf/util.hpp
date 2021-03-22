@@ -8,6 +8,19 @@
 #include <cudf/detail/get_value.cuh>
 #include <cudf/strings/strings_column_view.hpp>
 
+/**
+ * get one scalar value from device to host
+ * @param buff
+ * @return
+ */
+template <typename T>
+inline T getScalar(const uint8_t * buff) {
+    uint8_t *hostArray= new uint8_t[sizeof(T)];
+    cudaMemcpy(hostArray, buff, sizeof(T), cudaMemcpyDeviceToHost);
+    T * hdata = (T *) hostArray;
+    return hdata[0];
+}
+
 inline void printIntColumnPartA(const uint8_t * buff, int columnIndex, int start, int end) {
     std::cout << "column[" << columnIndex << "][" << start << "-" << end << "]: ";
     int8_t *hostArray= new int8_t [(end - start)];

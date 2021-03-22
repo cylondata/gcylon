@@ -161,7 +161,8 @@ cylon::Status joinTables(std::shared_ptr<GTable> &left,
     }
 
     std::shared_ptr<cylon::CylonContext> ctx = left->GetContext();
-    // todo: should joined columns repeat on the joined table or not
+    // todo: should joined columns repeat on the joined table or not?
+    // todo: should null values match?
     std::vector<std::pair<cudf::size_type, cudf::size_type>> columns_in_common{};
     std::shared_ptr<cudf::table> joined;
 

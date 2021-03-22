@@ -95,7 +95,7 @@ private:
 
     // partition char offsets on a single char array for the column
     // last index shows the end of the last string
-    std::vector<cudf::size_type> partCharOffsets{};
+    std::vector<cudf::size_type> partCharOffsets;
 
     // this is to prevent std::shared_ptr<rmm::device_buffer> to be deleted before they are sent out
     std::unordered_map<int, rmm::device_buffer> maskBuffers{};

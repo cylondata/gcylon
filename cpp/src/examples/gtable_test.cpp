@@ -80,8 +80,5 @@ int main(int argc, char *argv[]) {
     }
 
     ctx->Finalize();
-
-    int z = testAdd(1, 2);
-    LOG(INFO) << "test function result: " << z;
     return 0;
 }
