@@ -166,7 +166,7 @@ int main(int argc, char *argv[]) {
     }
 
     LOG(INFO) << myRank << ", inserted tables: ";
-//    cA2A->finish();
+    cA2A->finish();
 
     int i = 1;
     while(!cA2A->isComplete()) {
