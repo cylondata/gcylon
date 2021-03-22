@@ -2,7 +2,6 @@
 // Created by auyar on 3.02.2021.
 //
 
-#include "cudf/cudf_a2a.hpp"
 #include "cudf/gtable.hpp"
 
 #include <glog/logging.h>
@@ -20,6 +19,7 @@ int myRank = -1;
 using std::cout;
 using std::endl;
 using std::string;
+using namespace gcylon;
 
 void printLongColumn(cudf::column_view const& input, int columnIndex) {
     cout << "column[" << columnIndex << "]:  ";
@@ -41,11 +41,6 @@ int main(int argc, char *argv[]) {
     myRank = ctx->GetRank();
 
     LOG(INFO) << "myRank: "  << myRank << ", world size: " << ctx->GetWorldSize();
-
-    std::vector<int> allWorkers{};
-    for (int i = 0; i < ctx->GetWorldSize(); ++i) {
-        allWorkers.push_back(i);
-    }
 
     int numberOfGPUs;
     cudaGetDeviceCount(&numberOfGPUs);
@@ -85,5 +80,8 @@ int main(int argc, char *argv[]) {
     }
 
     ctx->Finalize();
+
+    int z = testAdd(1, 2);
+    LOG(INFO) << "test function result: " << z;
     return 0;
 }

@@ -15,6 +15,8 @@
 #include <cudf/io/csv.hpp>
 //#include <cuda_runtime.h>
 
+using namespace gcylon;
+
 // test variable
 int myRank = -1;
 

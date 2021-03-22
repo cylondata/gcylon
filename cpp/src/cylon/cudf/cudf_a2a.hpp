@@ -15,6 +15,8 @@
 #include <cudf/table/table_view.hpp>
 #include <cudf/strings/strings_column_view.hpp>
 
+namespace gcylon {
+
 cudf::size_type dataLength(cudf::column_view const& cw);
 
 class CudfBuffer : public cylon::Buffer {
@@ -331,5 +333,7 @@ private:
 
     std::unique_ptr<PartTableView> ptview;
 };
+
+}// end of namespace gcylon
 
 #endif //CYLON_CUDF_H

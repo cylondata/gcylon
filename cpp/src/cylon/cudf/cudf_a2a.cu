@@ -3,7 +3,9 @@
 //
 #include "cudf_a2a.cuh"
 
-__global__ void rebaseOffsets(int32_t * arr, int size, int32_t base) {
+namespace gcylon {
+
+    __global__ void rebaseOffsets(int32_t * arr, int size, int32_t base) {
     int i = blockIdx.x * blockDim.x + threadIdx.x;
     if (i < size) {
         arr[i] -= base;
@@ -23,3 +25,4 @@ void callRebaseOffsets(int32_t * arr, int size, int32_t base){
     cudaDeviceSynchronize();
 }
 
+}// end of namespace gcylon
