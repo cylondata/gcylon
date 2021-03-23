@@ -57,8 +57,8 @@ int main(int argc, char *argv[]) {
     LOG(INFO) << myRank << ", number of columns: " << ctable.tbl->num_columns() << ", number of rows: " << ctable.tbl->num_rows();
 
     std::shared_ptr<GTable> sourceGTable;
-    std::shared_ptr<cudf::table> cTable = std::move(ctable.tbl);
-    cylon::Status status = GTable::FromCudfTable(ctx, cTable, sourceGTable);
+//    std::shared_ptr<cudf::table> cTable = std::move(ctable.tbl);
+    cylon::Status status = GTable::FromCudfTable(ctx, ctable.tbl, sourceGTable);
     if (!status.is_ok()) {
         LOG(ERROR) << "GTable is not constructed successfully.";
         ctx->Finalize();

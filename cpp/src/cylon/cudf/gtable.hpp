@@ -6,15 +6,23 @@
 
 #include "cudf_a2a.hpp"
 #include <join/join_config.hpp>
+#include <cudf/io/types.hpp>
 
 namespace gcylon {
 
 class GTable {
 public:
     /**
-     * constructor with cudf table and contex
+     * constructor with cudf table and the context
      */
-    GTable(std::shared_ptr <cudf::table> &tab, std::shared_ptr <cylon::CylonContext> &ctx);
+    GTable(std::shared_ptr <cylon::CylonContext> &ctx, std::unique_ptr <cudf::table> &tab);
+
+    /**
+     * constructor with cudf table, metadata and the context
+     */
+    GTable(std::shared_ptr <cylon::CylonContext> &ctx,
+           std::unique_ptr <cudf::table> &tab,
+           cudf::io::table_metadata &metadata);
 
     /**
      * Create a table from a cudf table,
@@ -22,9 +30,17 @@ public:
      * @return
      */
     static cylon::Status FromCudfTable(std::shared_ptr <cylon::CylonContext> &ctx,
-                                       std::shared_ptr <cudf::table> &table,
+                                       std::unique_ptr <cudf::table> &table,
                                        std::shared_ptr <GTable> &tableOut);
 
+    /**
+     * Create a table from a cudf table_with_metadata,
+     * @param table
+     * @return
+     */
+    static cylon::Status FromCudfTable(std::shared_ptr<cylon::CylonContext> &ctx,
+                                        cudf::io::table_with_metadata &table,
+                                        std::shared_ptr<GTable> &tableOut);
     /**
      * destructor
      */
@@ -40,15 +56,19 @@ public:
      * Returns the cylon Context
      * @return
      */
-    std::shared_ptr <cudf::table> GetCudfTable();
+    std::unique_ptr<cudf::table> & GetCudfTable();
 
 private:
     /**
      * Every table should have an unique id
      */
     std::string id_;
-    std::shared_ptr <cudf::table> table_;
-    std::shared_ptr <cylon::CylonContext> ctx;
+    std::shared_ptr <cylon::CylonContext> ctx_;
+
+    //todo: i think, i need to make table pointer as the unique_ptr
+    //      and get it by reference in the constructors
+    std::unique_ptr <cudf::table> table_;
+    cudf::io::table_metadata metadata_;
 };
 
 /**

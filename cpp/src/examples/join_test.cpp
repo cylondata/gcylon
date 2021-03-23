@@ -76,8 +76,8 @@ int main(int argc, char *argv[]) {
               << ctable1.tbl->num_columns() << ", number of rows: " << ctable1.tbl->num_rows();
 
     std::shared_ptr<GTable> sourceGTable1;
-    std::shared_ptr<cudf::table> cTable1 = std::move(ctable1.tbl);
-    cylon::Status status = GTable::FromCudfTable(ctx, cTable1, sourceGTable1);
+//    std::shared_ptr<cudf::table> cTable1 = std::move(ctable1.tbl);
+    cylon::Status status = GTable::FromCudfTable(ctx, ctable1.tbl, sourceGTable1);
     if (!status.is_ok()) {
         LOG(ERROR) << "GTable is not constructed successfully.";
         ctx->Finalize();
@@ -94,8 +94,8 @@ int main(int argc, char *argv[]) {
 
 
     std::shared_ptr<GTable> sourceGTable2;
-    std::shared_ptr<cudf::table> cTable2 = std::move(ctable2.tbl);
-    status = GTable::FromCudfTable(ctx, cTable2, sourceGTable2);
+//    std::shared_ptr<cudf::table> cTable2 = std::move(ctable2.tbl);
+    status = GTable::FromCudfTable(ctx, ctable2.tbl, sourceGTable2);
     if (!status.is_ok()) {
         LOG(ERROR) << "GTable is not constructed successfully.";
         ctx->Finalize();
