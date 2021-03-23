@@ -58,7 +58,7 @@ int main(int argc, char *argv[]) {
 
     std::shared_ptr<GTable> sourceGTable;
 //    std::shared_ptr<cudf::table> cTable = std::move(ctable.tbl);
-    cylon::Status status = GTable::FromCudfTable(ctx, ctable.tbl, sourceGTable);
+    cylon::Status status = GTable::FromCudfTable(ctx, ctable, sourceGTable);
     if (!status.is_ok()) {
         LOG(ERROR) << "GTable is not constructed successfully.";
         ctx->Finalize();

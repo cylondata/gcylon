@@ -53,10 +53,22 @@ public:
     std::shared_ptr <cylon::CylonContext> GetContext();
 
     /**
-     * Returns the cylon Context
+     * Returns cudf::table
      * @return
      */
     std::unique_ptr<cudf::table> & GetCudfTable();
+
+    /**
+     * Returns cudf table metadata
+     * @return
+     */
+    cudf::io::table_metadata & GetCudfMetadata();
+
+    /**
+     * sets cudf table metadata
+     * @return
+     */
+    void SetCudfMetadata(cudf::io::table_metadata & metadata);
 
 private:
     /**

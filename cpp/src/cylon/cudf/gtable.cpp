@@ -41,6 +41,18 @@ std::unique_ptr<cudf::table> & GTable::GetCudfTable() {
     return this->table_;
 }
 
+cudf::io::table_metadata & GTable::GetCudfMetadata() {
+    return this->metadata_;
+}
+
+    /**
+     * sets cudf table metadata
+     * @return
+     */
+void GTable::SetCudfMetadata(cudf::io::table_metadata & metadata) {
+    metadata_ = metadata;
+}
+
 cylon::Status GTable::FromCudfTable(std::shared_ptr<cylon::CylonContext> &ctx,
                                     std::unique_ptr<cudf::table> &table,
                                     std::shared_ptr<GTable> &tableOut) {
@@ -60,7 +72,6 @@ cylon::Status GTable::FromCudfTable(std::shared_ptr<cylon::CylonContext> &ctx,
         return cylon::Status(cylon::Invalid, "This type not supported");
     }
 
-    std::shared_ptr<cudf::table> tblp = std::move(table.tbl);
     tableOut = std::make_shared<GTable>(ctx, table.tbl, table.metadata);
     return cylon::Status(cylon::OK, "Loaded Successfully");
 }
@@ -150,17 +161,16 @@ cylon::Status Shuffle(std::shared_ptr<GTable> &table,
     cudaDeviceSynchronize();
 
     std::unique_ptr<cudf::table> table_out;
-    cylon::Status status = all_to_all_cudf_table(ctx, partitioned.first, partitioned.second, table_out);
+    RETURN_CYLON_STATUS_IF_FAILED(
+            all_to_all_cudf_table(ctx, partitioned.first, partitioned.second, table_out));
 
-    if (!status.is_ok()) {
-        LOG(FATAL) << "table shuffle failed!";
-        return status;
-    }
+    RETURN_CYLON_STATUS_IF_FAILED(
+            GTable::FromCudfTable(ctx, table_out, output));
 
-    if (!table_out)
-        return cylon::Status::OK();
+    // set metadata for the shuffled table
+    output->SetCudfMetadata(table->GetCudfMetadata());
 
-    return GTable::FromCudfTable(ctx, table_out, output);
+    return cylon::Status::OK();
 }
 
 cylon::Status joinTables(std::shared_ptr<GTable> &left,
@@ -210,7 +220,11 @@ cylon::Status joinTables(std::shared_ptr<GTable> &left,
                                  columns_in_common);
     }
 
-    RETURN_CYLON_STATUS_IF_FAILED(GTable::FromCudfTable(ctx, joined, joinedTable));
+    RETURN_CYLON_STATUS_IF_FAILED(
+            GTable::FromCudfTable(ctx, joined, joinedTable));
+
+    // set metadata for the joined table
+    joinedTable->SetCudfMetadata(left->GetCudfMetadata());
     return cylon::Status::OK();
 }
 
@@ -227,11 +241,15 @@ cylon::Status DistributedJoin(std::shared_ptr<GTable> &left,
     }
 
     std::shared_ptr<GTable> left_shuffled_table, right_shuffled_table;
-    RETURN_CYLON_STATUS_IF_FAILED(Shuffle(left, join_config.GetLeftColumnIdx(), left_shuffled_table));
 
-    RETURN_CYLON_STATUS_IF_FAILED(Shuffle(right, join_config.GetRightColumnIdx(), right_shuffled_table));
+    RETURN_CYLON_STATUS_IF_FAILED(
+            Shuffle(left, join_config.GetLeftColumnIdx(), left_shuffled_table));
 
-    RETURN_CYLON_STATUS_IF_FAILED(joinTables(left_shuffled_table, right_shuffled_table, join_config, output));
+    RETURN_CYLON_STATUS_IF_FAILED(
+            Shuffle(right, join_config.GetRightColumnIdx(), right_shuffled_table));
+
+    RETURN_CYLON_STATUS_IF_FAILED(
+            joinTables(left_shuffled_table, right_shuffled_table, join_config, output));
 
     return cylon::Status::OK();
 }
