@@ -3,7 +3,7 @@
 //
 
 #include "cudf/gtable.hpp"
-#include "cudf/util.hpp"
+#include "cudf/print.hpp"
 
 #include <glog/logging.h>
 #include <chrono>
@@ -22,30 +22,6 @@ using std::cout;
 using std::endl;
 using std::string;
 using namespace gcylon;
-
-void printColumn(cudf::column_view const& input, int columnIndex) {
-    cout << "column[" << columnIndex << "]:  ";
-    if (input.type().id() == cudf::type_id::STRING) {
-        cudf::strings_column_view scv(input);
-        cudf::strings::print(scv);
-//        printStringColumnA(input, columnIndex);
-        return;
-    } else if (input.type().id() != cudf::type_id::INT64) {
-        cout << "data type is not INT64\n";
-        return;
-    }
-
-    const uint32_t * nullMask = input.null_mask();
-    for (cudf::size_type i = 0; i < input.size(); ++i) {
-        if (cudf::count_set_bits(nullMask, i, i+1) == 0) {
-            cout << "null";
-        } else {
-            cout << cudf::detail::get_value<int64_t>(input, i, rmm::cuda_stream_default);
-        }
-        cout << ", ";
-    }
-    cout << endl;
-}
 
 int main(int argc, char *argv[]) {
 

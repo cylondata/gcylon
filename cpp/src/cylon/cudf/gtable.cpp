@@ -228,7 +228,6 @@ cylon::Status joinTables(std::shared_ptr<GTable> &left,
     return cylon::Status::OK();
 }
 
-
 cylon::Status DistributedJoin(std::shared_ptr<GTable> &left,
                               std::shared_ptr<GTable> &right,
                               const cylon::join::config::JoinConfig &join_config,

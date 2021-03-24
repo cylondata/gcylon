@@ -70,15 +70,14 @@ public:
      */
     void SetCudfMetadata(cudf::io::table_metadata & metadata);
 
+    //todo: need to add GetTableWithMetadata
+
 private:
     /**
      * Every table should have an unique id
      */
     std::string id_;
     std::shared_ptr <cylon::CylonContext> ctx_;
-
-    //todo: i think, i need to make table pointer as the unique_ptr
-    //      and get it by reference in the constructors
     std::unique_ptr <cudf::table> table_;
     cudf::io::table_metadata metadata_;
 };
@@ -106,8 +105,6 @@ cylon::Status DistributedJoin(std::shared_ptr<GTable> &left,
                        std::shared_ptr<GTable> &right,
                        const cylon::join::config::JoinConfig &join_config,
                        std::shared_ptr<GTable> &output);
-
-    int testAdd(int x, int y);
 
 }// end of namespace gcylon
 #endif //CYLON_GTABLE_H
