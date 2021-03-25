@@ -226,7 +226,7 @@ build_python_conda() {
 
   pushd python || exit 1
   make clean
-  GCYLON_PREFIX=${BUILD_PATH} ARROW_PREFIX=${BUILD_PREFIX}/lib python3 setup.py install || exit 1
+  GCYLON_PREFIX=${BUILD_PATH} python3 setup.py install || exit 1
   popd || exit 1
   print_line
 }

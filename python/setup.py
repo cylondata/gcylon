@@ -45,7 +45,7 @@ except Exception:
     nthreads = 0
 
 compiler_directives = {"language_level": 3, "embedsignature": True}
-cython_files = ["pycylon/*.pyx"]
+cython_files = ["pygcylon/*.pyx"]
 
 if not GCYLON_PREFIX:
     raise ValueError("GCYLON_PREFIX not set")
@@ -115,7 +115,7 @@ extensions = [
 ]
 
 compiler_directives = {"language_level": 3, "embedsignature": True}
-#packages = find_packages(include=["pycylon", "pycylon.*"])
+packages = find_packages(include=["pygcylon", "pygcylon.*"])
 
 setup(
     name="pygcylon",
