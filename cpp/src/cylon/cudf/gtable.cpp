@@ -253,4 +253,8 @@ cylon::Status DistributedJoin(std::shared_ptr<GTable> &left,
     return cylon::Status::OK();
 }
 
+int testAdd(int x, int y) {
+    return x + y;
+}
+
 }// end of namespace gcylon

@@ -106,5 +106,8 @@ cylon::Status DistributedJoin(std::shared_ptr<GTable> &left,
                        const cylon::join::config::JoinConfig &join_config,
                        std::shared_ptr<GTable> &output);
 
+int testAdd(int x, int y);
+
 }// end of namespace gcylon
+
 #endif //CYLON_GTABLE_H

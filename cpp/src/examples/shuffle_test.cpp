@@ -22,7 +22,6 @@ using std::endl;
 using std::string;
 using namespace gcylon;
 
-
 int main(int argc, char *argv[]) {
 
     if (argc != 2) {
@@ -76,7 +75,7 @@ int main(int argc, char *argv[]) {
     } else {
         LOG(INFO) << myRank << ": shuffled table first column:";
         printColumn(shuffledGTable->GetCudfTable()->view().column(0), 0);
-        cout << "shuffled table first column nulltmask: " << endl;
+        cout << "shuffled table first column nullmask: " << endl;
         printNullMask(shuffledGTable->GetCudfTable()->view().column(0));
     }
 
