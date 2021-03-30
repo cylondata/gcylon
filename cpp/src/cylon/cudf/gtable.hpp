@@ -6,15 +6,23 @@
 
 #include "cudf_a2a.hpp"
 #include <join/join_config.hpp>
+#include <cudf/io/types.hpp>
 
 namespace gcylon {
 
 class GTable {
 public:
     /**
-     * constructor with cudf table and contex
+     * constructor with cudf table and the context
      */
-    GTable(std::shared_ptr <cudf::table> &tab, std::shared_ptr <cylon::CylonContext> &ctx);
+    GTable(std::shared_ptr <cylon::CylonContext> &ctx, std::unique_ptr <cudf::table> &tab);
+
+    /**
+     * constructor with cudf table, metadata and the context
+     */
+    GTable(std::shared_ptr <cylon::CylonContext> &ctx,
+           std::unique_ptr <cudf::table> &tab,
+           cudf::io::table_metadata &metadata);
 
     /**
      * Create a table from a cudf table,
@@ -22,9 +30,17 @@ public:
      * @return
      */
     static cylon::Status FromCudfTable(std::shared_ptr <cylon::CylonContext> &ctx,
-                                       std::shared_ptr <cudf::table> &table,
+                                       std::unique_ptr <cudf::table> &table,
                                        std::shared_ptr <GTable> &tableOut);
 
+    /**
+     * Create a table from a cudf table_with_metadata,
+     * @param table
+     * @return
+     */
+    static cylon::Status FromCudfTable(std::shared_ptr<cylon::CylonContext> &ctx,
+                                        cudf::io::table_with_metadata &table,
+                                        std::shared_ptr<GTable> &tableOut);
     /**
      * destructor
      */
@@ -37,18 +53,33 @@ public:
     std::shared_ptr <cylon::CylonContext> GetContext();
 
     /**
-     * Returns the cylon Context
+     * Returns cudf::table
      * @return
      */
-    std::shared_ptr <cudf::table> GetCudfTable();
+    std::unique_ptr<cudf::table> & GetCudfTable();
+
+    /**
+     * Returns cudf table metadata
+     * @return
+     */
+    cudf::io::table_metadata & GetCudfMetadata();
+
+    /**
+     * sets cudf table metadata
+     * @return
+     */
+    void SetCudfMetadata(cudf::io::table_metadata & metadata);
+
+    //todo: need to add GetTableWithMetadata
 
 private:
     /**
      * Every table should have an unique id
      */
     std::string id_;
-    std::shared_ptr <cudf::table> table_;
-    std::shared_ptr <cylon::CylonContext> ctx;
+    std::shared_ptr <cylon::CylonContext> ctx_;
+    std::unique_ptr <cudf::table> table_;
+    cudf::io::table_metadata metadata_;
 };
 
 /**
@@ -75,7 +106,8 @@ cylon::Status DistributedJoin(std::shared_ptr<GTable> &left,
                        const cylon::join::config::JoinConfig &join_config,
                        std::shared_ptr<GTable> &output);
 
-    int testAdd(int x, int y);
+int testAdd(int x, int y);
 
 }// end of namespace gcylon
+
 #endif //CYLON_GTABLE_H

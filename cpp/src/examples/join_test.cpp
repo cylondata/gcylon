@@ -3,7 +3,7 @@
 //
 
 #include "cudf/gtable.hpp"
-#include "cudf/util.hpp"
+#include "cudf/print.hpp"
 
 #include <glog/logging.h>
 #include <chrono>
@@ -22,30 +22,6 @@ using std::cout;
 using std::endl;
 using std::string;
 using namespace gcylon;
-
-void printColumn(cudf::column_view const& input, int columnIndex) {
-    cout << "column[" << columnIndex << "]:  ";
-    if (input.type().id() == cudf::type_id::STRING) {
-        cudf::strings_column_view scv(input);
-        cudf::strings::print(scv);
-//        printStringColumnA(input, columnIndex);
-        return;
-    } else if (input.type().id() != cudf::type_id::INT64) {
-        cout << "data type is not INT64\n";
-        return;
-    }
-
-    const uint32_t * nullMask = input.null_mask();
-    for (cudf::size_type i = 0; i < input.size(); ++i) {
-        if (cudf::count_set_bits(nullMask, i, i+1) == 0) {
-            cout << "null";
-        } else {
-            cout << cudf::detail::get_value<int64_t>(input, i, rmm::cuda_stream_default);
-        }
-        cout << ", ";
-    }
-    cout << endl;
-}
 
 int main(int argc, char *argv[]) {
 
@@ -76,8 +52,8 @@ int main(int argc, char *argv[]) {
               << ctable1.tbl->num_columns() << ", number of rows: " << ctable1.tbl->num_rows();
 
     std::shared_ptr<GTable> sourceGTable1;
-    std::shared_ptr<cudf::table> cTable1 = std::move(ctable1.tbl);
-    cylon::Status status = GTable::FromCudfTable(ctx, cTable1, sourceGTable1);
+//    std::shared_ptr<cudf::table> cTable1 = std::move(ctable1.tbl);
+    cylon::Status status = GTable::FromCudfTable(ctx, ctable1.tbl, sourceGTable1);
     if (!status.is_ok()) {
         LOG(ERROR) << "GTable is not constructed successfully.";
         ctx->Finalize();
@@ -94,8 +70,8 @@ int main(int argc, char *argv[]) {
 
 
     std::shared_ptr<GTable> sourceGTable2;
-    std::shared_ptr<cudf::table> cTable2 = std::move(ctable2.tbl);
-    status = GTable::FromCudfTable(ctx, cTable2, sourceGTable2);
+//    std::shared_ptr<cudf::table> cTable2 = std::move(ctable2.tbl);
+    status = GTable::FromCudfTable(ctx, ctable2.tbl, sourceGTable2);
     if (!status.is_ok()) {
         LOG(ERROR) << "GTable is not constructed successfully.";
         ctx->Finalize();

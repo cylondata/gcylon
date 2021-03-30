@@ -3,6 +3,7 @@
 //
 
 #include "cudf/gtable.hpp"
+#include "cudf/print.hpp"
 
 #include <glog/logging.h>
 #include <chrono>
@@ -20,14 +21,6 @@ using std::cout;
 using std::endl;
 using std::string;
 using namespace gcylon;
-
-void printLongColumn(cudf::column_view const& input, int columnIndex) {
-    cout << "column[" << columnIndex << "]:  ";
-    for (cudf::size_type i = 0; i < input.size(); ++i) {
-        cout << cudf::detail::get_value<int64_t>(input, i, rmm::cuda_stream_default) << ", ";
-    }
-    cout << endl;
-}
 
 int main(int argc, char *argv[]) {
 
@@ -54,11 +47,16 @@ int main(int argc, char *argv[]) {
     cudf::io::source_info si(input_csv_file);
     cudf::io::csv_reader_options options = cudf::io::csv_reader_options::builder(si);
     cudf::io::table_with_metadata ctable = cudf::io::read_csv(options);
-    LOG(INFO) << myRank << ", number of columns: " << ctable.tbl->num_columns() << ", number of rows: " << ctable.tbl->num_rows();
+    cudf::table_view tview = ctable.tbl->view();
+
+    printTableColumnTypes(tview);
+    LOG(INFO) << myRank << ": original table first column:";
+    printColumn(tview.column(0), 0);
+    cout << "original table first column nullmask: " << endl;
+    printNullMask(tview.column(0));
 
     std::shared_ptr<GTable> sourceGTable;
-    std::shared_ptr<cudf::table> cTable = std::move(ctable.tbl);
-    cylon::Status status = GTable::FromCudfTable(ctx, cTable, sourceGTable);
+    cylon::Status status = GTable::FromCudfTable(ctx, ctable, sourceGTable);
     if (!status.is_ok()) {
         LOG(ERROR) << "GTable is not constructed successfully.";
         ctx->Finalize();
@@ -76,7 +74,9 @@ int main(int argc, char *argv[]) {
         LOG(INFO) << myRank << ": shuffled table is empty";
     } else {
         LOG(INFO) << myRank << ": shuffled table first column:";
-        printLongColumn(shuffledGTable->GetCudfTable()->view().column(0), 0);
+        printColumn(shuffledGTable->GetCudfTable()->view().column(0), 0);
+        cout << "shuffled table first column nullmask: " << endl;
+        printNullMask(shuffledGTable->GetCudfTable()->view().column(0));
     }
 
     ctx->Finalize();
