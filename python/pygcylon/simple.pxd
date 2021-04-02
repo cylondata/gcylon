@@ -18,7 +18,11 @@ from libcpp.memory cimport shared_ptr
 from libcpp.vector cimport vector
 
 # from pycylon.cudf.gtable cimport testAdd
+#cdef extern from "../../cpp/src/cylon/cudf/gtable.hpp" namespace "gcylon":
 
-cdef extern from "../../cpp/src/cylon/cudf/gtable.hpp" namespace "gcylon":
-    int testAdd(int x, int y)
+# import functions
+cdef extern from "../../cpp/src/cylon/cudf/ex.hpp" namespace "gcylon":
+    int testMult(int x, int y)
+
+    void vectorAdd(vector[int] &v, int y)
 

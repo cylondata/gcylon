@@ -24,21 +24,20 @@
 #   make test                                                            #
 # For more information about CMake, see http://www.cmake.org             #
 ##########################################################################
-cmake_minimum_required(VERSION 3.13 FATAL_ERROR)
+cmake_minimum_required(VERSION 3.17 FATAL_ERROR)
 project(GCYLON LANGUAGES CXX CUDA)
 
 set(GCYLON_VERSION 0.2.0)
 
 message("CONDA_PREFIX: " $ENV{CONDA_PREFIX})
-if (NOT DEFINED ENV{CONDA_PREFIX})
-    message(SEND_ERROR "Conda environment is not active. CONDA_PREFIX is not set." )
+if ((NOT DEFINED ENV{CONDA_PREFIX}) AND (NOT DEFINED ENV{CONDA_BUILD}) )
+    message(SEND_ERROR "Neither CONDA_PREFIX nor CONDA_BUILD is set. Activate conda environment or use conda-build")
 endif ()
 
 message("CYLON_HOME: " $ENV{CYLON_HOME})
 if (NOT DEFINED ENV{CYLON_HOME})
     message(SEND_ERROR "CYLON_HOME not set as an environment variable.." )
 endif ()
-
 
 set(WITHOUT_CUDA OFF)
 
@@ -47,10 +46,6 @@ if (NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Release)
 endif ()
 
-# cmake modules directories
-set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/CMake/Modules/" ${CMAKE_MODULE_PATH})
-list(APPEND CMAKE_MODULE_PATH ${GCYLON_SOURCE_DIR}/CMake)
-
 if (WITHOUT_CUDA)
     set(CMAKE_CXX_FLAGS "-Wall -Wextra")
 endif ()
@@ -58,24 +53,6 @@ endif ()
 set("GCYLON_SIMD_LEVEL" "SSE4_2") # options: SSE4_2| AVX512 | AVX2
 
 set(CMAKE_CUDA_ARCHITECTURES 60 61 75)
-
-# Add common flags
-# include(SetupCxxFlags)
-# message("CXX_COMMON_FLAGS: ${CXX_COMMON_FLAGS}")
-# set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${CXX_COMMON_FLAGS}")
-
-# string(TOUPPER "${CMAKE_BUILD_TYPE}" UPPERCASE_CMAKE_BUILD_TYPE)
-# if (UPPERCASE_CMAKE_BUILD_TYPE MATCHES "DEBUG")
-#     message("Running on debug mode...")
-#    set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -g")
-#
-#    set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fsanitize=address -fno-omit-frame-pointer ")
-# elseif (UPPERCASE_CMAKE_BUILD_TYPE MATCHES "RELEASE")
-#    message("Running on Release mode...")
-#    set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O3")
-#else ()
-#    message(FATAL_ERROR "Unknown CMAKE_BUILD_TYPE ${CMAKE_BUILD_TYPE}! Exiting...")
-#endif ()
 
 # C++ standard
 SET(CMAKE_CXX_STANDARD 14)
@@ -91,8 +68,36 @@ if (NOT HAVE_EXCLUSIVE_SCAN)
     add_definitions(-DNEED_EXCLUSIVE_SCAN)
 endif ()
 
-# Put the libaries and binaries that get built into directories at the
-# top of the build.
+
+# if conda build is used
+if("$ENV{CONDA_BUILD}" STREQUAL "1")
+    set(CMAKE_SYSTEM_PREFIX_PATH "$ENV{BUILD_PREFIX};$ENV{PREFIX};${CMAKE_SYSTEM_PREFIX_PATH}")
+    set(CONDA_INCLUDE_DIRS "$ENV{BUILD_PREFIX}/include" "$ENV{PREFIX}/include")
+    set(CMAKE_INSTALL_INCLUDEDIR "$ENV{BUILD_PREFIX}/include")
+    set(CUDF_INCLUDE_DIR "$ENV{BUILD_PREFIX}/include/libcudf/libcudacxx/" "$ENV{PREFIX}/include/libcudf/libcudacxx/")
+    link_directories($ENV{BUILD_PREFIX}/lib/)
+    link_directories($ENV{BUILD_PREFIX}/lib64/)
+    set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} $ENV{BUILD_PREFIX}/lib/cmake)
+    set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} $ENV{BUILD_PREFIX}/lib64/cmake)
+    message(STATUS "Conda build detected, CMAKE_SYSTEM_PREFIX_PATH set to: ${CMAKE_SYSTEM_PREFIX_PATH}")
+
+# if build.sh is used without conda build
+elseif(DEFINED ENV{CONDA_PREFIX})
+    set(CUDAToolkit_DIR "/usr/local/cuda-10.1")
+    set(CMAKE_SYSTEM_PREFIX_PATH "$ENV{CONDA_PREFIX};${CMAKE_SYSTEM_PREFIX_PATH}")
+    set(CONDA_INCLUDE_DIRS "$ENV{CONDA_PREFIX}/include")
+    set(CMAKE_INSTALL_INCLUDEDIR "$ENV{BUILD_PREFIX}/include")
+    set(CUDF_INCLUDE_DIR "$ENV{CONDA_PREFIX}/include/libcudf/libcudacxx/")
+    link_directories($ENV{CONDA_PREFIX}/lib/)
+    link_directories($ENV{CONDA_PREFIX}/lib64/)
+    set(CMAKE_MODULE_PATH "$ENV{CONDA_PREFIX}/lib/cmake;${CMAKE_MODULE_PATH}")
+    set(CMAKE_MODULE_PATH "$ENV{CONDA_PREFIX}/lib64/cmake;${CMAKE_MODULE_PATH}")
+    message(STATUS "Conda environment detected, CMAKE_SYSTEM_PREFIX_PATH set to: ${CMAKE_SYSTEM_PREFIX_PATH}")
+endif("$ENV{CONDA_BUILD}" STREQUAL "1")
+
+message("CMAKE_MODULE_PATH: ${CMAKE_MODULE_PATH}")
+
+# Put the libaries and binaries that get built into directories at the top of the build.
 SET(LIBRARY_OUTPUT_PATH ${CMAKE_BINARY_DIR}/lib)
 SET(EXECUTABLE_OUTPUT_PATH ${CMAKE_BINARY_DIR}/bin)
 SET(TEST_DATA_DIR ${GCYLON_SOURCE_DIR}/data)
@@ -107,16 +112,17 @@ SET(WITH_GFLAGS OFF)
 find_package(CUDAToolkit REQUIRED)
 message("CUDAToolkit_INCLUDE_DIRS: " ${CUDAToolkit_INCLUDE_DIRS})
 
-# root include directory
-SET(CONDA_DIR $ENV{CONDA_PREFIX})
+# CYLON home directory
 SET(CYLON_DIR $ENV{CYLON_HOME})
 
+# include_directories()
+set(GLOG_LIBRARIES glog)
+
 include_directories(
-        ${CONDA_DIR}/include
-        ${CUDAToolkit_INCLUDE_DIRS}
-        ${CONDA_DIR}/include/libcudf/libcudacxx/
         ${CYLON_DIR}/cpp/src/cylon/
-        ${glog_DIR}/include
+        ${CUDAToolkit_INCLUDE_DIRS}
+        ${CONDA_INCLUDE_DIRS}
+        ${CUDF_INCLUDE_DIR}
 )
 
 

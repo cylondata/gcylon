@@ -5,10 +5,10 @@ init:
 	mkdir pytwisterx; mkdir -p pytwisterx/common
 
 install:
-	sudo python3 setup.py install
+	python3 setup.py install
 
 uninstall:
-	sudo pip3 uninstall -y pytwisterx;
+	pip3 uninstall -y pytwisterx;
 
 develop:
 	mkdir pytwisterx;python3 setup.py develop;

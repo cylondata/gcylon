@@ -1,3 +1,4 @@
+##
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -9,11 +10,17 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+##
 
-[versioneer]
-VCS = git
-style = pep440
-versionfile_source = pygcylon/_version.py
-versionfile_build = pygcylon/_version.py
-tag_prefix = v
-parentdir_prefix = pygcylon-
+from pygcylon.simple cimport testMult
+from pygcylon.simple cimport vectorAdd
+
+def mult(int n, int m):
+   return testMult(n, m)
+
+def listAdd(lst, int m):
+   vectorAdd(lst, m)
+
+def increment(int n):
+    cdef int result = n + 1
+    return result

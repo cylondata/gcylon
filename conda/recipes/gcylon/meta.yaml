@@ -1,0 +1,42 @@
+{% set version = '0.4.0'.lstrip('v') + environ.get('VERSION_SUFFIX', '') %}
+{% set minor_version =  version.split('.')[0] + '.' + version.split('.')[1] %}
+{% set gcylon_version='.'.join(environ.get('GCYLON_VERSION', '0.4.0').split('.')[:2]) %}
+
+package:
+  name: gcylon
+  version: {{ version }}
+
+source:
+  path: ../../..
+#  git_url: ../../..
+
+build:
+  number: {{environ.get('GIT_DESCRIBE_NUMBER', '123')}}
+  string: gcylon{{ gcylon_version }}_{{ GIT_DESCRIBE_HASH }}_{{ environ.get('GIT_DESCRIBE_NUMBER', '123') }}
+  script_env:
+    - CYLON_HOME
+    - CC
+    - CXX
+    - CUDACXX
+  run_exports:
+    - {{ pin_subpackage("gcylon", max_pin="x.x") }}
+
+requirements:
+  build:
+    - cmake >=3.17
+    - python=3.7
+    - libcudf=0.18
+    - cudatoolkit=10.1
+    - glog=0.4.0
+  run:
+    - cmake >=3.14.0
+    - cudatoolkit=10.1
+    - libcudf=0.18
+    - glog=0.4.0
+
+about:
+  home: http://cylondata.org/
+  license: Apache-2.0
+  license_family: Apache
+  license_file: LICENSE
+  summary: Cylon C++ library

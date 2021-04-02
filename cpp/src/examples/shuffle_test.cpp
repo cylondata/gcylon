@@ -4,6 +4,7 @@
 
 #include "cudf/gtable.hpp"
 #include "cudf/print.hpp"
+#include "cudf/ex.hpp"
 
 #include <glog/logging.h>
 #include <chrono>
@@ -23,6 +24,9 @@ using std::string;
 using namespace gcylon;
 
 int main(int argc, char *argv[]) {
+
+    int x = testMult(4, 3);
+    cout << "result of xxx: " << x << endl;
 
     if (argc != 2) {
         std::cout << "You must specify a CSV input file.\n";
