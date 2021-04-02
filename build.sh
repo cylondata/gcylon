@@ -4,8 +4,8 @@ SOURCE_DIR=$(pwd)/cpp
 CPP_BUILD="OFF"
 PYTHON_BUILD="OFF"
 CYTHON_BUILD="OFF"
-CONDA_CPP_BUILD="ON"
-CONDA_PYTHON_BUILD="ON"
+CONDA_CPP_BUILD="OFF"
+CONDA_PYTHON_BUILD="OFF"
 JAVA_BUILD="OFF"
 BUILD_ALL="OFF"
 
@@ -16,7 +16,7 @@ PYTHON_RELEASE="OFF"
 RUN_CPP_TESTS="OFF"
 RUN_PYTHON_TESTS="OFF"
 STYLE_CHECK="OFF"
-INSTALL_PATH=$(pwd)/build
+INSTALL_PATH=$(pwd)/bin
 BUILD_PATH=$(pwd)/build
 CMAKE_FLAGS=""
 
@@ -110,14 +110,16 @@ set -- "${POSITIONAL[@]}" # restore positional parameters
 
 echo "PYTHON ENV PATH       = ${PYTHON_ENV_PATH}"
 echo "BUILD PATH            = ${BUILD_PATH}"
-echo "FLAG CPP BUILD        = ${CPP_BUILD}"
-echo "FLAG PYTHON BUILD     = ${PYTHON_BUILD}"
-echo "FLAG BUILD ALL        = ${BUILD_ALL}"
-echo "FLAG BUILD DEBUG      = ${BUILD_MODE_DEBUG}"
-echo "FLAG BUILD RELEASE    = ${BUILD_MODE_RELEASE}"
-echo "FLAG RUN CPP TEST     = ${RUN_CPP_TESTS}"
-echo "FLAG RUN PYTHON TEST  = ${RUN_PYTHON_TESTS}"
-echo "FLAG STYLE CHECK      = ${STYLE_CHECK}"
+echo "CPP BUILD             = ${CPP_BUILD}"
+echo "PYTHON BUILD          = ${PYTHON_BUILD}"
+echo "CONDA CPP BUILD       = ${CONDA_CPP_BUILD}"
+echo "CONDA PYTHON BUILD    = ${CONDA_PYTHON_BUILD}"
+echo "BUILD ALL             = ${BUILD_ALL}"
+echo "BUILD DEBUG           = ${BUILD_MODE_DEBUG}"
+echo "BUILD RELEASE         = ${BUILD_MODE_RELEASE}"
+echo "RUN CPP TEST          = ${RUN_CPP_TESTS}"
+echo "RUN PYTHON TEST       = ${RUN_PYTHON_TESTS}"
+echo "STYLE CHECK           = ${STYLE_CHECK}"
 echo "ADDITIONAL CMAKE FLAGS= ${CMAKE_FLAGS}"
 
 if [[ -n $1 ]]; then
@@ -161,23 +163,17 @@ build_cpp(){
   print_line
   echo "Building CPP in ${BUILD_MODE} mode"
   print_line
-  if [ "${PYTHON_BUILD}" = "ON" ]; then
-    source "${PYTHON_ENV_PATH}"/bin/activate || exit 1
-    read_python_requirements
-  fi
   CPPLINT_CMD=" "
   if [ "${STYLE_CHECK}" = "ON" ]; then
     CPPLINT_CMD=${CPPLINT_COMMAND}
   fi
   mkdir ${BUILD_PATH}
   pushd ${BUILD_PATH} || exit 1
-#  export ARROW_HOME=${BUILD_PATH}/arrow/install
   cmake -DPYCYLON_BUILD=${PYTHON_BUILD} -DPYTHON_EXEC_PATH=${PYTHON_ENV_PATH} \
       -DCMAKE_BUILD_TYPE=${BUILD_MODE} -DCYLON_WITH_TEST=${RUN_CPP_TESTS} $CPPLINT_CMD $INSTALL_CMD \
       ${CMAKE_FLAGS} \
       ${SOURCE_DIR} || exit 1
   make -j 4 || exit 1
-#  printf "ARROW HOME SET :%s \n" "${ARROW_HOME}"
   printf "Cylon CPP Built Successufully!"
   popd || exit 1
   print_line
@@ -187,22 +183,8 @@ build_cpp_conda(){
   print_line
   echo "Building Conda CPP in ${BUILD_MODE} mode"
   print_line
-#  ARROW_LIB=${CONDA_PREFIX}/lib
-#  ARROW_INC=${CONDA_PREFIX}/include
-#  echo "ARROW_LIB: $ARROW_LIB"
-#  echo "ARROW_INC: $ARROW_INC"
-
-  # sometimes pip pyarrow installation does not contain a libarrow.so file, but only libarrow.so.xxx.
-  # then, create a symlink libarrow.so -->  libarrow.so.xxx
-#  for SO_FILE in "${ARROW_LIB}/libarrow.so" "${ARROW_LIB}/libarrow_python.so"; do
-#  if [ ! -f "$SO_FILE" ]; then
-#    echo "$SO_FILE does not exist! Trying to create a symlink"
-#    ln -sf "$(ls "$SO_FILE".*)" "$SO_FILE" || exit 1
-#  fi
-#  done
 
   echo "SOURCE_DIR: ${SOURCE_DIR}"
-  BUILD_PATH=$(pwd)/build
   mkdir -p ${BUILD_PATH}
   pushd ${BUILD_PATH} || exit 1
   cmake -DPYCYLON_BUILD=${PYTHON_BUILD} -DPYTHON_EXEC_PATH=${PYTHON_ENV_PATH} \
@@ -211,7 +193,7 @@ build_cpp_conda(){
       ${SOURCE_DIR} \
       || exit 1
   make -j 4 || exit 1
-#  make install || exit 1
+  make install || exit 1
   printf "Cylon CPP Built Successfully!"
   popd || exit 1
   print_line
@@ -219,13 +201,16 @@ build_cpp_conda(){
 
 build_python_conda() {
   print_line
-  echo "Building Python"
-#  ARROW_LIB=${CONDA_PREFIX}/lib
-  export LD_LIBRARY_PATH="${CONDA_PREFIX}/lib:${CYLON_HOME}/build/lib:${BUILD_PATH}/lib:${LD_LIBRARY_PATH}" || exit 1
+  echo "Building Conda Python"
+  echo "================================ Conda PREFIX: ${PREFIX}"
+  echo "================================ BUILD_PATH: ${BUILD_PATH}"
+  CYLON_LIB=${CYLON_HOME}/build/lib
+  export LD_LIBRARY_PATH="${CONDA_PREFIX}/lib:${CYLON_LIB}:${BUILD_PATH}/lib:${LD_LIBRARY_PATH}" || exit 1
   echo "LD_LIBRARY_PATH=${LD_LIBRARY_PATH}"
 
   pushd python || exit 1
   make clean
+  echo "current dir before executing setup.py: ${PWD}"
   GCYLON_PREFIX=${BUILD_PATH} python3 setup.py install || exit 1
   popd || exit 1
   print_line
@@ -234,18 +219,23 @@ build_python_conda() {
 build_python() {
   print_line
   echo "Building Python"
+  if [ -z "$CONDA_PREFIX" ]; then
+    echo "CONDA_PREFIX is not set. Please activate gcylon conda environment"
+    exit 1
+  fi
+
+  echo "\-ipath|--install_path is NOT set default to cmake"
 #  export LD_LIBRARY_PATH=${BUILD_PATH}/arrow/install/lib:${BUILD_PATH}/lib:$LD_LIBRARY_PATH || exit 1
-  export LD_LIBRARY_PATH=${BUILD_PATH}/lib:$LD_LIBRARY_PATH || exit 1
+  export LD_LIBRARY_PATH=${BUILD_PATH}/lib:$CYLON_HOME/build/lib:${CONDA_PREFIX}/lib:$LD_LIBRARY_PATH || exit 1
   echo "LD_LIBRARY_PATH="$LD_LIBRARY_PATH
   # shellcheck disable=SC1090
 #  source "${PYTHON_ENV_PATH}"/bin/activate || exit 1
   read_python_requirements
-  check_python_pre_requisites
+#  check_python_pre_requisites
   pushd python || exit 1
-  pip3 uninstall -y pycylon
+  pip3 uninstall -y pygcylon
   make clean
-  GCYLON_PREFIX=${BUILD_PATH} python3 setup.py install || exit 1
-#  CYLON_PREFIX=${BUILD_PATH} ARROW_PREFIX=${BUILD_PATH}/arrow/install python3 setup.py install || exit 1
+  python3 setup.py install || exit 1
   popd || exit 1
   print_line
 }
@@ -284,8 +274,8 @@ check_pyarrow_installation(){
   echo "${response}"
 }
 
-check_pycylon_installation(){
-  response=$(python3 python/test/test_pycylon.py)
+check_pygcylon_installation(){
+  response=$(python3 python/test/test_pygcylon.py)
   echo "${response}"
 }
 
@@ -326,25 +316,23 @@ if [ "${CONDA_PYTHON_BUILD}" = "ON" ]; then
 fi
 
 
-if [ "${PYTHON_BUILD}" = "ON" ]; then
-  if [ -z "$PYTHON_ENV_PATH" ]; then
-    echo "To build python, -pyenv|--python_env_path should be set to a python environment"
-    exit 1
-  fi
-fi
+#if [ "${PYTHON_BUILD}" = "ON" ]; then
+#  if [ -z "$PYTHON_ENV_PATH" ]; then
+#    echo "To build python, -pyenv|--python_env_path should be set to a python environment"
+#    exit 1
+#  fi
+#fi
 
 if [ "${PYTHON_BUILD}" = "ON" ]; then
 	export_info
-	build_pyarrow
-	check_pyarrow_installation
 	build_python
-	check_pycylon_installation
+	check_pygcylon_installation
 fi
 
 if [ "${CYTHON_BUILD}" = "ON" ]; then
 	export_info	
 	build_python
-	check_pycylon_installation
+	check_pygcylon_installation
 fi
 
 if [ "${JAVA_BUILD}" = "ON" ]; then

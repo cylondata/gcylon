@@ -19,9 +19,10 @@ https://github.com/thewtex/cython-cmake-example/blob/master/setup.py
 '''
 
 import os
+import sys
 import sysconfig
 #import pyarrow as pa
-import numpy as np
+#import numpy as np
 
 import versioneer
 from Cython.Build import cythonize
@@ -32,29 +33,26 @@ from distutils.sysconfig import get_python_lib
 version = versioneer.get_version(),
 cmdclass = versioneer.get_cmdclass(),
 
-# os.environ["CXX"] = "mpic++"
-# pyarrow_location = os.path.dirname(pa.__file__)
-# pyarrow_version = pa.__version__
+# make sure conda is activated or, conda-build is used
+if ("CONDA_PREFIX" not in os.environ and "CONDA_BUILD" not in os.environ):
+    print("Neither CONDA_PREFIX nor CONDA_BUILD is set. Activate conda environment or use conda-build")
+    sys.exit()
 
-GCYLON_PREFIX = os.environ.get('GCYLON_PREFIX')
-# ARROW_PREFIX = os.environ.get('ARROW_PREFIX')
+
+# os.environ["CXX"] = "mpic++"
 
 try:
     nthreads = int(os.environ.get("PARALLEL_LEVEL", "0") or "0")
 except Exception:
     nthreads = 0
 
-compiler_directives = {"language_level": 3, "embedsignature": True}
 cython_files = ["pygcylon/*.pyx"]
 
-if not GCYLON_PREFIX:
-    raise ValueError("GCYLON_PREFIX not set")
+if "GCYLON_HOME" not in os.environ:
+    raise ValueError("GCYLON_HOME not set")
 
 std_version = '-std=c++14'
-additional_compile_args = [std_version,
-                           '-DARROW_METADATA_V4 -DNEED_EXCLUSIVE_SCAN']
-#arrow_lib_include_dir = None
-#arrow_library_directory = None
+additional_compile_args = [std_version]
 # if not ARROW_PREFIX:
 #     arrow_lib_include_dir = os.path.join(pyarrow_location, "include")
 #     arrow_library_directory = pyarrow_location
@@ -72,31 +70,41 @@ additional_compile_args = [std_version,
 extra_compile_args = os.popen("mpic++ --showme:compile").read().strip().split(' ')
 extra_link_args = os.popen("mpic++ --showme:link").read().strip().split(' ')
 extra_compile_args = extra_compile_args + extra_link_args + additional_compile_args
+#  extra_compile_args = additional_compile_args
 extra_link_args.append("-Wl,-rpath")
-#extra_link_args.append("-Wl,-rpath,$ORIGIN/pyarrow")
 
 #glob_library_directory = os.path.join(CYLON_PREFIX, "glog", "install", "lib")
 
 
 #glog_lib_include_dir = os.path.join(CYLON_PREFIX, "glog", "install", "include")
-gcylon_library_directory = os.path.join(GCYLON_PREFIX, "lib")
+#gcylon_library_directory = os.path.join(GCYLON_PREFIX, "lib")
+gcylon_library_directory = os.path.join(os.environ.get('GCYLON_HOME'), "build/lib")
+#cylon_library_directory = os.path.join(os.environ.get('CYLON_HOME'), "build/lib")
 
-library_directories = [gcylon_library_directory,
-#                       glob_library_directory,
-                       os.path.join(os.environ.get('CYLON_HOME'), "build/lib"),
-                       get_python_lib(),
-                       os.path.join(os.sys.prefix, "lib")]
+if "CONDA_PREFIX" in os.environ:
+    conda_lib_dir = os.path.join(os.environ.get('CONDA_PREFIX'), "lib")
+    conda_include_dir = os.path.join(os.environ.get('CONDA_PREFIX'), "include")
+elif "CONDA_BUILD" in os.environ:
+    conda_lib_dir = os.path.join(os.environ.get('BUILD_PREFIX'), "lib") + " "
+    conda_lib_dir += os.path.join(os.environ.get('PREFIX'), "lib")
+    conda_include_dir = os.path.join(os.environ.get('BUILD_PREFIX'), "include") + " "
+    conda_include_dir += os.path.join(os.environ.get('PREFIX'), "include")
 
-libraries = ["gcylon", "cylon"]
-#libraries = ["gcylon", "glog"]
+print("=============================== gcylon_library_directory: ", gcylon_library_directory)
+print("=============================== conda_library_directory: ", conda_lib_dir)
+
+library_directories = [
+    gcylon_library_directory,
+    conda_lib_dir,
+    get_python_lib(),
+    os.path.join(os.sys.prefix, "lib")]
+
+libraries = ["gcylon"]
+#libraries = ["gcylon", "cylon", "glog"]
 
 _include_dirs = ["../cpp/src/cylon/cudf",
-#                 glog_lib_include_dir,
-                 os.path.join(os.environ.get('CYLON_HOME'), "cpp/src/cylon"),
-                 os.path.join(os.environ.get('CONDA_PREFIX'), "include"),
-                 np.get_include(),
-                 os.path.dirname(sysconfig.get_path("include")),
-                 ]
+                 conda_include_dir,
+                 os.path.dirname(sysconfig.get_path("include"))]
 
 # Adopted the Cudf Python Build format
 # https://github.com/rapidsai/cudf
@@ -123,7 +131,6 @@ setup(
     version=versioneer.get_version(),
     setup_requires=["cython",
                     "setuptools",
-#                    "numpy",
                     ],
     ext_modules=cythonize(
         extensions,
@@ -134,8 +141,6 @@ setup(
     ),
     python_requires='>=3.7',
     install_requires=[
-#        'numpy',
-#        f'pyarrow=={pyarrow_version}',
         'cython',
     ],
     zip_safe=False,

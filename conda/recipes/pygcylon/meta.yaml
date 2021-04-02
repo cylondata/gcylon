@@ -1,0 +1,49 @@
+{% set version = '0.4.0'.lstrip('v') + environ.get('VERSION_SUFFIX', '') %}
+{% set minor_version =  version.split('.')[0] + '.' + version.split('.')[1] %}
+{% set pygcylon_version='.'.join(environ.get('GCYLON_VERSION', '0.4.0').split('.')[:2]) %}
+
+package:
+  name: pygcylon
+  version: {{ version }}
+
+source:
+  path: ../../..
+#  git_url: ../../..
+
+build:
+  number: {{environ.get('GIT_DESCRIBE_NUMBER', '123')}}
+  string: pygcylon{{ pygcylon_version }}_{{ GIT_DESCRIBE_HASH }}_{{ environ.get('GIT_DESCRIBE_NUMBER', '123') }}
+  script_env:
+    - CONDA_PREFIX
+    - LD_LIBRARY_PATH
+    - CYLON_HOME
+    - GCYLON_HOME
+    - CC
+    - CXX
+    - CUDACXX
+  run_exports:
+    - {{ pin_subpackage("pygcylon", max_pin="x.x") }}
+
+requirements:
+  build:
+    - cmake >=3.17
+    - python=3.7
+#    - libcudf=0.18
+#    - cudatoolkit=10.1
+#    - glog=0.4.0
+    - cython >=0.29,<0.30
+    - setuptools
+    - gcylon=0.4.0
+  run:
+#    - cmake >=3.14.0
+#    - cudatoolkit=10.1
+#    - libcudf=0.18
+#    - glog=0.4.0
+    - gcylon==0.4.0
+
+about:
+  home: http://cylondata.org/
+  license: Apache-2.0
+  license_family: Apache
+  license_file: LICENSE
+  summary: Cylon C++ library

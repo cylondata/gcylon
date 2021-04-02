@@ -1,0 +1,20 @@
+name: gcylon_dev
+channels:
+  - rapidsai
+  - nvidia
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.7
+  - cmake >=3.17
+  - cudatoolkit=10.1
+  - libcudf=0.18
+  - glog=0.4.0
+  - conda-build >=3.21
+  - cython >=0.29,<0.30
+  - setuptools >=49.6.0
+
+# we used CUDACXX environment variable to discover cudatoolkit in the host machine
+# we could have also used nvcc_linux-64 that requires cxx-compiler
+#  - cxx-compiler=1.0 # insures C and C++ compilers are available
+#  - nvcc_linux-64=10.1 # configures environment to be "cuda-aware"

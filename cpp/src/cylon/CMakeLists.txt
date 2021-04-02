@@ -27,6 +27,8 @@ add_library(gcylon SHARED
         cudf/util.hpp
         cudf/gtable.hpp
         cudf/gtable.cpp
+        cudf/ex.hpp
+        cudf/ex.cpp
         )
 
 set(CMAKE_SHARED_LINKER_FLAGS "-Wl,--no-undefined")
@@ -37,24 +39,44 @@ set_property(TARGET gcylon PROPERTY CUDA_SEPARABLE_COMPILATION ON)
 
 target_link_libraries(gcylon ${GLOG_LIBRARIES})
 target_link_libraries(gcylon ${CYLON_DIR}/build/lib/libcylon.so)
-target_link_libraries(gcylon CUDA::cudart)
-target_link_libraries(gcylon
-        ${CONDA_DIR}/lib/libcudf_ast.so
-        ${CONDA_DIR}/lib/libcudf_interop.so
-        ${CONDA_DIR}/lib/libcudf_partitioning.so
-        ${CONDA_DIR}/lib/libcudf_rolling.so
-        ${CONDA_DIR}/lib/libcudf_base.so
-        ${CONDA_DIR}/lib/libcudf_io.so
-        ${CONDA_DIR}/lib/libcudf_reductions.so
-        ${CONDA_DIR}/lib/libcudf.so
-        ${CONDA_DIR}/lib/libcudf_comms.so
-        ${CONDA_DIR}/lib/libcudf_join.so
-        ${CONDA_DIR}/lib/libcudf_replace.so
-        ${CONDA_DIR}/lib/libcudf_hash.so
-        ${CONDA_DIR}/lib/libcudf_merge.so
-        ${CONDA_DIR}/lib/libcudf_reshape.so
-        ${CONDA_DIR}/lib/libcudf_transpose.so
+if("$ENV{CONDA_BUILD}" STREQUAL "1")
+    target_link_libraries(gcylon
+            $ENV{BUILD_PREFIX}/lib/libcudf_ast.so
+            $ENV{BUILD_PREFIX}/lib/libcudf_interop.so
+            $ENV{BUILD_PREFIX}/lib/libcudf_partitioning.so
+            $ENV{BUILD_PREFIX}/lib/libcudf_rolling.so
+            $ENV{BUILD_PREFIX}/lib/libcudf_base.so
+            $ENV{BUILD_PREFIX}/lib/libcudf_io.so
+            $ENV{BUILD_PREFIX}/lib/libcudf_reductions.so
+            $ENV{BUILD_PREFIX}/lib/libcudf.so
+            $ENV{BUILD_PREFIX}/lib/libcudf_comms.so
+            $ENV{BUILD_PREFIX}/lib/libcudf_join.so
+            $ENV{BUILD_PREFIX}/lib/libcudf_replace.so
+            $ENV{BUILD_PREFIX}/lib/libcudf_hash.so
+            $ENV{BUILD_PREFIX}/lib/libcudf_merge.so
+            $ENV{BUILD_PREFIX}/lib/libcudf_reshape.so
+            $ENV{BUILD_PREFIX}/lib/libcudf_transpose.so
+            )
+elseif(DEFINED ENV{CONDA_PREFIX})
+    target_link_libraries(gcylon
+        $ENV{CONDA_PREFIX}/lib/libcudf_ast.so
+        $ENV{CONDA_PREFIX}/lib/libcudf_interop.so
+        $ENV{CONDA_PREFIX}/lib/libcudf_partitioning.so
+        $ENV{CONDA_PREFIX}/lib/libcudf_rolling.so
+        $ENV{CONDA_PREFIX}/lib/libcudf_base.so
+        $ENV{CONDA_PREFIX}/lib/libcudf_io.so
+        $ENV{CONDA_PREFIX}/lib/libcudf_reductions.so
+        $ENV{CONDA_PREFIX}/lib/libcudf.so
+        $ENV{CONDA_PREFIX}/lib/libcudf_comms.so
+        $ENV{CONDA_PREFIX}/lib/libcudf_join.so
+        $ENV{CONDA_PREFIX}/lib/libcudf_replace.so
+        $ENV{CONDA_PREFIX}/lib/libcudf_hash.so
+        $ENV{CONDA_PREFIX}/lib/libcudf_merge.so
+        $ENV{CONDA_PREFIX}/lib/libcudf_reshape.so
+        $ENV{CONDA_PREFIX}/lib/libcudf_transpose.so
         )
+endif("$ENV{CONDA_BUILD}" STREQUAL "1")
+target_link_libraries(gcylon CUDA::cudart)
 
 if (WITHOUT_CUDA)
     target_compile_options(gcylon PRIVATE -Werror -Wall -Wextra -Wno-unused-parameter)

@@ -1,2 +1,2 @@
 include versioneer.py
-include pycylon/_version.py
+include pygcylon/_version.py
