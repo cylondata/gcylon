@@ -25,11 +25,11 @@ requirements:
   build:
     - cmake >=3.17
     - python=3.7
-    - libcudf=0.18
+    - cudf=0.18
     - cudatoolkit=10.1
     - glog=0.4.0
   run:
-    - cmake >=3.14.0
+#    - cmake >=3.14.0
     - cudatoolkit=10.1
     - libcudf=0.18
     - glog=0.4.0
