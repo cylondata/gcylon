@@ -150,25 +150,37 @@ cylon::Status all_to_all_cudf_table(std::shared_ptr<cylon::CylonContext> ctx,
     return cylon::Status::OK();
 }
 
-cylon::Status Shuffle(std::shared_ptr<GTable> &table,
+cylon::Status Shuffle(const cudf::table_view & inputTable,
                       const std::vector<int> &columns_to_hash,
-                      std::shared_ptr<GTable> &output) {
+                      std::shared_ptr<cylon::CylonContext> ctx,
+                      std::unique_ptr<cudf::table> &table_out) {
 
-    auto ctx = table->GetContext();
     std::pair<std::unique_ptr<cudf::table>, std::vector<cudf::size_type>> partitioned
-            = cudf::hash_partition(table->GetCudfTable()->view(), columns_to_hash, ctx->GetWorldSize());
+            = cudf::hash_partition(inputTable, columns_to_hash, ctx->GetWorldSize());
     // todo: not sure whether this is needed
     cudaDeviceSynchronize();
 
-    std::unique_ptr<cudf::table> table_out;
     RETURN_CYLON_STATUS_IF_FAILED(
             all_to_all_cudf_table(ctx, partitioned.first, partitioned.second, table_out));
 
+    return cylon::Status::OK();
+}
+
+cylon::Status Shuffle(std::shared_ptr<GTable> &inputTable,
+                      const std::vector<int> &columns_to_hash,
+                      std::shared_ptr<GTable> &outputTable) {
+
+    std::unique_ptr<cudf::table> table_out;
+    auto ctx = inputTable->GetContext();
+
     RETURN_CYLON_STATUS_IF_FAILED(
-            GTable::FromCudfTable(ctx, table_out, output));
+            Shuffle(inputTable->GetCudfTable()->view(), columns_to_hash, ctx, table_out));
+
+    RETURN_CYLON_STATUS_IF_FAILED(
+            GTable::FromCudfTable(ctx, table_out, outputTable));
 
     // set metadata for the shuffled table
-    output->SetCudfMetadata(table->GetCudfMetadata());
+    outputTable->SetCudfMetadata(inputTable->GetCudfMetadata());
 
     return cylon::Status::OK();
 }
@@ -251,10 +263,6 @@ cylon::Status DistributedJoin(std::shared_ptr<GTable> &left,
             joinTables(left_shuffled_table, right_shuffled_table, join_config, output));
 
     return cylon::Status::OK();
-}
-
-int testAdd(int x, int y) {
-    return x + y;
 }
 
 }// end of namespace gcylon
