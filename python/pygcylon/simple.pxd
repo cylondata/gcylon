@@ -12,13 +12,8 @@
 # limitations under the License.
 ##
 
-from libcpp.string cimport string
-from libcpp cimport bool
 from libcpp.memory cimport shared_ptr
 from libcpp.vector cimport vector
-
-# from pycylon.cudf.gtable cimport testAdd
-#cdef extern from "../../cpp/src/cylon/cudf/gtable.hpp" namespace "gcylon":
 
 # import functions
 cdef extern from "../../cpp/src/cylon/cudf/ex.hpp" namespace "gcylon":
@@ -26,3 +21,12 @@ cdef extern from "../../cpp/src/cylon/cudf/ex.hpp" namespace "gcylon":
 
     void vectorAdd(vector[int] &v, int y)
 
+    shared_ptr[vector[int]] vectorCopy(vector[int] & v);
+
+    cdef cppclass Rectangle:
+        Rectangle() except +
+        Rectangle(int, int, int, int) except +
+        int x0, y0, x1, y1
+        int getArea()
+        void getSize(int* width, int* height)
+        void move(int, int)
