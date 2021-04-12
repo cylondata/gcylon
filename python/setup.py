@@ -21,6 +21,7 @@ https://github.com/thewtex/cython-cmake-example/blob/master/setup.py
 import os
 import sys
 import sysconfig
+import numpy as np
 
 import versioneer
 from Cython.Build import cythonize
@@ -44,8 +45,6 @@ try:
 except Exception:
     nthreads = 0
 
-cython_files = ["pygcylon/*.pyx"]
-
 if "GCYLON_HOME" not in os.environ:
     raise ValueError("GCYLON_HOME not set")
 
@@ -66,6 +65,7 @@ extra_link_args.append("-Wl,-rpath")
 
 #glog_lib_include_dir = os.path.join(CYLON_PREFIX, "glog", "install", "include")
 gcylon_library_directory = os.path.join(os.environ.get('GCYLON_HOME'), "build/lib")
+cylon_library_directory = os.path.join(os.environ.get('CYLON_HOME'), "build/lib")
 
 if "CONDA_PREFIX" in os.environ:
     conda_lib_dir = os.path.join(os.environ.get('CONDA_PREFIX'), "lib")
@@ -77,15 +77,17 @@ elif "CONDA_BUILD" in os.environ:
     conda_include_dir += os.path.join(os.environ.get('PREFIX'), "include")
 
 print("gcylon_library_directory: ", gcylon_library_directory)
+print("cylon_library_directory: ", cylon_library_directory)
 print("conda_library_directory: ", conda_lib_dir)
 
 library_directories = [
     gcylon_library_directory,
+    cylon_library_directory,
     conda_lib_dir,
     get_python_lib(),
     os.path.join(os.sys.prefix, "lib")]
 
-libraries = ["gcylon", "cudf"]
+libraries = ["gcylon", "cudf", "cylon"]
 #libraries = ["gcylon", "cylon", "glog"]
 
 cylon_include_dir = os.path.join(os.environ.get('CYLON_HOME'), "cpp/src/cylon")
@@ -93,10 +95,13 @@ cylon_include_dir = os.path.join(os.environ.get('CYLON_HOME'), "cpp/src/cylon")
 _include_dirs = ["../cpp/src/cylon/cudf",
                  cylon_include_dir,
                  conda_include_dir,
+                 np.get_include(),
                  os.path.dirname(sysconfig.get_path("include"))]
 
 # Adopted the Cudf Python Build format
 # https://github.com/rapidsai/cudf
+
+cython_files = ["pygcylon/*/*.pyx"]
 
 extensions = [
     Extension(
@@ -118,7 +123,7 @@ setup(
     name="pygcylon",
     packages=packages,
     version=versioneer.get_version(),
-    setup_requires=["cython", "setuptools"],
+    setup_requires=["cython", "setuptools", "numpy"],
     ext_modules=cythonize(
         extensions,
         nthreads=nthreads,
@@ -127,8 +132,6 @@ setup(
         ),
     ),
     python_requires='>=3.7',
-    install_requires=[
-        'cython',
-    ],
+    install_requires=["cython", "numpy"],
     zip_safe=False,
 )

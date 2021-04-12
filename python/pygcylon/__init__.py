@@ -12,6 +12,8 @@
 # limitations under the License.
 ##
 
+from pygcylon.ctx.context import CylonContext
+
 from ._version import get_versions
 __version__ = get_versions()['version']
 del get_versions

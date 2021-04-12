@@ -25,6 +25,12 @@
 # For more information about CMake, see http://www.cmake.org             #
 ##########################################################################
 cmake_minimum_required(VERSION 3.17 FATAL_ERROR)
+
+# help cmake find cuda
+# CUDACXX must be set as an environment variable pointing to nvcc
+# such as: /usr/local/cuda/bin/nvcc
+set(CMAKE_CUDA_COMPILER $ENV{CUDACXX})
+
 project(GCYLON LANGUAGES CXX CUDA)
 
 set(GCYLON_VERSION 0.2.0)
