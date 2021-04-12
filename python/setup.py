@@ -21,8 +21,7 @@ https://github.com/thewtex/cython-cmake-example/blob/master/setup.py
 import os
 import sys
 import sysconfig
-#import pyarrow as pa
-#import numpy as np
+import numpy as np
 
 import versioneer
 from Cython.Build import cythonize
@@ -46,27 +45,15 @@ try:
 except Exception:
     nthreads = 0
 
-cython_files = ["pygcylon/*.pyx"]
-
 if "GCYLON_HOME" not in os.environ:
     raise ValueError("GCYLON_HOME not set")
 
+if "CYLON_HOME" not in os.environ:
+    raise ValueError("CYLON_HOME not set")
+
 std_version = '-std=c++14'
 additional_compile_args = [std_version]
-# if not ARROW_PREFIX:
-#     arrow_lib_include_dir = os.path.join(pyarrow_location, "include")
-#     arrow_library_directory = pyarrow_location
-#     additional_compile_args = additional_compile_args + ['-D_GLIBCXX_USE_CXX11_ABI=0']
-#     if not os.path.exists(arrow_library_directory):
-#         arrow_library_directory = os.path.join(pyarrow_location, "lib64")
-# else:
-#     arrow_lib_include_dir = os.path.join(ARROW_PREFIX, "include")
-#     arrow_library_directory = os.path.join(ARROW_PREFIX, "lib")
-# 
-#     if not os.path.exists(arrow_library_directory):
-#         arrow_library_directory = os.path.join(ARROW_PREFIX, "lib64")
 
-#pyarrow_include_dir = os.path.join(pyarrow_location, 'include')
 extra_compile_args = os.popen("mpic++ --showme:compile").read().strip().split(' ')
 extra_link_args = os.popen("mpic++ --showme:link").read().strip().split(' ')
 extra_compile_args = extra_compile_args + extra_link_args + additional_compile_args
@@ -77,9 +64,8 @@ extra_link_args.append("-Wl,-rpath")
 
 
 #glog_lib_include_dir = os.path.join(CYLON_PREFIX, "glog", "install", "include")
-#gcylon_library_directory = os.path.join(GCYLON_PREFIX, "lib")
 gcylon_library_directory = os.path.join(os.environ.get('GCYLON_HOME'), "build/lib")
-#cylon_library_directory = os.path.join(os.environ.get('CYLON_HOME'), "build/lib")
+cylon_library_directory = os.path.join(os.environ.get('CYLON_HOME'), "build/lib")
 
 if "CONDA_PREFIX" in os.environ:
     conda_lib_dir = os.path.join(os.environ.get('CONDA_PREFIX'), "lib")
@@ -90,24 +76,32 @@ elif "CONDA_BUILD" in os.environ:
     conda_include_dir = os.path.join(os.environ.get('BUILD_PREFIX'), "include") + " "
     conda_include_dir += os.path.join(os.environ.get('PREFIX'), "include")
 
-print("=============================== gcylon_library_directory: ", gcylon_library_directory)
-print("=============================== conda_library_directory: ", conda_lib_dir)
+print("gcylon_library_directory: ", gcylon_library_directory)
+print("cylon_library_directory: ", cylon_library_directory)
+print("conda_library_directory: ", conda_lib_dir)
 
 library_directories = [
     gcylon_library_directory,
+    cylon_library_directory,
     conda_lib_dir,
     get_python_lib(),
     os.path.join(os.sys.prefix, "lib")]
 
-libraries = ["gcylon"]
+libraries = ["gcylon", "cudf", "cylon"]
 #libraries = ["gcylon", "cylon", "glog"]
 
+cylon_include_dir = os.path.join(os.environ.get('CYLON_HOME'), "cpp/src/cylon")
+
 _include_dirs = ["../cpp/src/cylon/cudf",
+                 cylon_include_dir,
                  conda_include_dir,
+                 np.get_include(),
                  os.path.dirname(sysconfig.get_path("include"))]
 
 # Adopted the Cudf Python Build format
 # https://github.com/rapidsai/cudf
+
+cython_files = ["pygcylon/*/*.pyx"]
 
 extensions = [
     Extension(
@@ -127,11 +121,9 @@ packages = find_packages(include=["pygcylon", "pygcylon.*"])
 
 setup(
     name="pygcylon",
-#    packages=packages,
+    packages=packages,
     version=versioneer.get_version(),
-    setup_requires=["cython",
-                    "setuptools",
-                    ],
+    setup_requires=["cython", "setuptools", "numpy"],
     ext_modules=cythonize(
         extensions,
         nthreads=nthreads,
@@ -140,8 +132,6 @@ setup(
         ),
     ),
     python_requires='>=3.7',
-    install_requires=[
-        'cython',
-    ],
+    install_requires=["cython", "numpy"],
     zip_safe=False,
 )

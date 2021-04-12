@@ -83,15 +83,29 @@ private:
 };
 
 /**
-* Shuffles a table based on hashes
+ * Shuffles a cudf::table with table_view
+ * this is to be called from cython code and the other Shuffle with GTable
+ * @param inputTable
+ * @param columns_to_hash
+ * @param ctx
+ * @param table_out
+ * @return
+ */
+cylon::Status Shuffle(const cudf::table_view & inputTable,
+                      const std::vector<int> &columns_to_hash,
+                      std::shared_ptr<cylon::CylonContext> ctx,
+                      std::unique_ptr<cudf::table> &table_out);
+
+/**
+* Shuffles a GTable based on hashes of the given columns
 * @param table
 * @param hash_col_idx vector of column indicies that needs to be hashed
 * @param output
 * @return
 */
-cylon::Status Shuffle(std::shared_ptr <GTable> &table,
-                      const std::vector<int> &hash_col_idx,
-                      std::shared_ptr <GTable> &output);
+cylon::Status Shuffle(std::shared_ptr<GTable> &inputTable,
+                      const std::vector<int> &columns_to_hash,
+                      std::shared_ptr<GTable> &outputTable);
 
 /**
  * Similar to local join, but performs the join in a distributed fashion
@@ -105,8 +119,6 @@ cylon::Status DistributedJoin(std::shared_ptr<GTable> &left,
                        std::shared_ptr<GTable> &right,
                        const cylon::join::config::JoinConfig &join_config,
                        std::shared_ptr<GTable> &output);
-
-int testAdd(int x, int y);
 
 }// end of namespace gcylon
 

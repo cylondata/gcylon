@@ -2,10 +2,9 @@
 
 SOURCE_DIR=$(pwd)/cpp
 CPP_BUILD="OFF"
-PYTHON_BUILD="OFF"
 CYTHON_BUILD="OFF"
 CONDA_CPP_BUILD="OFF"
-CONDA_PYTHON_BUILD="OFF"
+CONDA_CYTHON_BUILD="OFF"
 JAVA_BUILD="OFF"
 BUILD_ALL="OFF"
 
@@ -16,7 +15,7 @@ PYTHON_RELEASE="OFF"
 RUN_CPP_TESTS="OFF"
 RUN_PYTHON_TESTS="OFF"
 STYLE_CHECK="OFF"
-INSTALL_PATH=$(pwd)/bin
+INSTALL_PATH=$(pwd)/build
 BUILD_PATH=$(pwd)/build
 CMAKE_FLAGS=""
 
@@ -27,11 +26,6 @@ key="$1"
 
 
 case $key in
-    -pyenv|--python_env_path)
-    PYTHON_ENV_PATH="$2"
-    shift # past argument
-    shift # past value
-    ;;
     -bpath|--build_path)
     BUILD_PATH="$2"
     shift # past argument
@@ -46,17 +40,12 @@ case $key in
     CPP_BUILD="ON"
     shift # past argument
     ;;
-    --python)
-    CPP_BUILD="ON"
-    PYTHON_BUILD="ON"
-    shift # past argument
-    ;;
     --conda_cpp)
     CONDA_CPP_BUILD="ON"
     shift # past argument
     ;;
-    --conda_python)
-    CONDA_PYTHON_BUILD="ON"
+    --conda_cython)
+    CONDA_CYTHON_BUILD="ON"
     shift # past argument
     ;;
     --cython)
@@ -111,9 +100,9 @@ set -- "${POSITIONAL[@]}" # restore positional parameters
 echo "PYTHON ENV PATH       = ${PYTHON_ENV_PATH}"
 echo "BUILD PATH            = ${BUILD_PATH}"
 echo "CPP BUILD             = ${CPP_BUILD}"
-echo "PYTHON BUILD          = ${PYTHON_BUILD}"
+echo "CYTHON BUILD          = ${CYTHON_BUILD}"
 echo "CONDA CPP BUILD       = ${CONDA_CPP_BUILD}"
-echo "CONDA PYTHON BUILD    = ${CONDA_PYTHON_BUILD}"
+echo "CONDA CYTHON BUILD    = ${CONDA_CYTHON_BUILD}"
 echo "BUILD ALL             = ${BUILD_ALL}"
 echo "BUILD DEBUG           = ${BUILD_MODE_DEBUG}"
 echo "BUILD RELEASE         = ${BUILD_MODE_RELEASE}"
@@ -169,7 +158,7 @@ build_cpp(){
   fi
   mkdir ${BUILD_PATH}
   pushd ${BUILD_PATH} || exit 1
-  cmake -DPYCYLON_BUILD=${PYTHON_BUILD} -DPYTHON_EXEC_PATH=${PYTHON_ENV_PATH} \
+  cmake -DPYCYLON_BUILD=${CYTHON_BUILD} -DPYTHON_EXEC_PATH=${PYTHON_ENV_PATH} \
       -DCMAKE_BUILD_TYPE=${BUILD_MODE} -DCYLON_WITH_TEST=${RUN_CPP_TESTS} $CPPLINT_CMD $INSTALL_CMD \
       ${CMAKE_FLAGS} \
       ${SOURCE_DIR} || exit 1
@@ -187,7 +176,10 @@ build_cpp_conda(){
   echo "SOURCE_DIR: ${SOURCE_DIR}"
   mkdir -p ${BUILD_PATH}
   pushd ${BUILD_PATH} || exit 1
-  cmake -DPYCYLON_BUILD=${PYTHON_BUILD} -DPYTHON_EXEC_PATH=${PYTHON_ENV_PATH} \
+  # clear all files in the build directory
+  rm -rf ./*
+
+  cmake -DPYCYLON_BUILD=${CYTHON_BUILD} -DPYTHON_EXEC_PATH=${PYTHON_ENV_PATH} \
       -DCMAKE_BUILD_TYPE=${BUILD_MODE} -DCYLON_WITH_TEST=${RUN_CPP_TESTS} $INSTALL_CMD \
       ${CMAKE_FLAGS} \
       ${SOURCE_DIR} \
@@ -199,7 +191,7 @@ build_cpp_conda(){
   print_line
 }
 
-build_python_conda() {
+build_cython_conda() {
   print_line
   echo "Building Conda Python"
   echo "================================ Conda PREFIX: ${PREFIX}"
@@ -208,10 +200,13 @@ build_python_conda() {
   export LD_LIBRARY_PATH="${CONDA_PREFIX}/lib:${CYLON_LIB}:${BUILD_PATH}/lib:${LD_LIBRARY_PATH}" || exit 1
   echo "LD_LIBRARY_PATH=${LD_LIBRARY_PATH}"
 
+  export GCYLON_HOME=${PWD}
+  echo "GCYLON_HOME: ${GCYLON_HOME}"
+
   pushd python || exit 1
   make clean
   echo "current dir before executing setup.py: ${PWD}"
-  GCYLON_PREFIX=${BUILD_PATH} python3 setup.py install || exit 1
+  python3 setup.py install || exit 1
   popd || exit 1
   print_line
 }
@@ -228,8 +223,11 @@ build_python() {
 #  export LD_LIBRARY_PATH=${BUILD_PATH}/arrow/install/lib:${BUILD_PATH}/lib:$LD_LIBRARY_PATH || exit 1
   export LD_LIBRARY_PATH=${BUILD_PATH}/lib:$CYLON_HOME/build/lib:${CONDA_PREFIX}/lib:$LD_LIBRARY_PATH || exit 1
   echo "LD_LIBRARY_PATH="$LD_LIBRARY_PATH
+
+  export GCYLON_HOME=${PWD}
+  echo "GCYLON_HOME: ${GCYLON_HOME}"
+
   # shellcheck disable=SC1090
-#  source "${PYTHON_ENV_PATH}"/bin/activate || exit 1
   read_python_requirements
 #  check_python_pre_requisites
   pushd python || exit 1
@@ -310,24 +308,11 @@ if [ "${CONDA_CPP_BUILD}" = "ON" ]; then
 	build_cpp_conda
 fi
 
-if [ "${CONDA_PYTHON_BUILD}" = "ON" ]; then
+if [ "${CONDA_CYTHON_BUILD}" = "ON" ]; then
 	echo "Running conda build"
-	build_python_conda
+	build_cython_conda
 fi
 
-
-#if [ "${PYTHON_BUILD}" = "ON" ]; then
-#  if [ -z "$PYTHON_ENV_PATH" ]; then
-#    echo "To build python, -pyenv|--python_env_path should be set to a python environment"
-#    exit 1
-#  fi
-#fi
-
-if [ "${PYTHON_BUILD}" = "ON" ]; then
-	export_info
-	build_python
-	check_pygcylon_installation
-fi
 
 if [ "${CYTHON_BUILD}" = "ON" ]; then
 	export_info	

@@ -14,10 +14,8 @@ build:
   number: {{environ.get('GIT_DESCRIBE_NUMBER', '123')}}
   string: pygcylon{{ pygcylon_version }}_{{ GIT_DESCRIBE_HASH }}_{{ environ.get('GIT_DESCRIBE_NUMBER', '123') }}
   script_env:
-    - CONDA_PREFIX
     - LD_LIBRARY_PATH
     - CYLON_HOME
-    - GCYLON_HOME
     - CC
     - CXX
     - CUDACXX
@@ -28,17 +26,17 @@ requirements:
   build:
     - cmake >=3.17
     - python=3.7
-#    - libcudf=0.18
-#    - cudatoolkit=10.1
-#    - glog=0.4.0
+    - cudf=0.18
+    - cudatoolkit=10.1
+    - glog=0.4.0
     - cython >=0.29,<0.30
     - setuptools
     - gcylon=0.4.0
   run:
 #    - cmake >=3.14.0
-#    - cudatoolkit=10.1
-#    - libcudf=0.18
-#    - glog=0.4.0
+    - cudatoolkit=10.1
+    - cudf=0.18
+    - glog=0.4.0
     - gcylon==0.4.0
 
 about:
