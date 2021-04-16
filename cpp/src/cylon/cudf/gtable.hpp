@@ -120,6 +120,8 @@ cylon::Status DistributedJoin(std::shared_ptr<GTable> &left,
                        const cylon::join::config::JoinConfig &join_config,
                        std::shared_ptr<GTable> &output);
 
+cylon::Status WriteToCsv(std::shared_ptr<GTable> &table, std::string outputFile);
+
 }// end of namespace gcylon
 
 #endif //CYLON_GTABLE_H

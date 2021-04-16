@@ -105,12 +105,9 @@ cylon::Status all_to_all_cudf_table(std::shared_ptr<cylon::CylonContext> ctx,
     // define call back to catch the receiving tables
     CudfCallback cudf_callback =
             [&received_tables](int source, const std::shared_ptr<cudf::table> &table_, int reference) {
-//                LOG(INFO) << "%%%%%%%%%%%%%%%%%%%%% received a table. columns: " << table_->num_columns()
+//                LOG(INFO) << "%%%%%%%%%%%%%%%%%%%%% received a table. columns: " << table_->num_columns();
 //                    << ", rows: " << table_->num_rows();
                 received_tables.push_back(table_);
-
-//                cudf::column_view cview = table_->view().column(8);
-//                printStringColumnA(cview, 8);
                 return true;
             };
 
@@ -262,6 +259,16 @@ cylon::Status DistributedJoin(std::shared_ptr<GTable> &left,
     RETURN_CYLON_STATUS_IF_FAILED(
             joinTables(left_shuffled_table, right_shuffled_table, join_config, output));
 
+    return cylon::Status::OK();
+}
+
+cylon::Status WriteToCsv(std::shared_ptr<GTable> &table, std::string outputFile) {
+    cudf::io::sink_info sink_info(outputFile);
+    cudf::io::csv_writer_options options =
+            cudf::io::csv_writer_options::builder(sink_info, table->GetCudfTable()->view())
+            .metadata(&(table->GetCudfMetadata()))
+            .include_header(true);
+    cudf::io::write_csv(options);
     return cylon::Status::OK();
 }
 

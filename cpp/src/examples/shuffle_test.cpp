@@ -15,6 +15,7 @@
 #include <cudf/strings/strings_column_view.hpp>
 #include <cudf/detail/get_value.cuh>
 #include <cudf/io/csv.hpp>
+#include <cudf/io/types.hpp>
 
 // test variable
 int myRank = -1;
@@ -24,9 +25,6 @@ using std::string;
 using namespace gcylon;
 
 int main(int argc, char *argv[]) {
-
-    int x = testMult(4, 3);
-    cout << "result of xxx: " << x << endl;
 
     if (argc != 2) {
         std::cout << "You must specify a CSV input file.\n";
@@ -49,7 +47,7 @@ int main(int argc, char *argv[]) {
     // construct table
     std::string input_csv_file = argv[1];
     cudf::io::source_info si(input_csv_file);
-    cudf::io::csv_reader_options options = cudf::io::csv_reader_options::builder(si);
+    cudf::io::csv_reader_options options = cudf::io::csv_reader_options::builder(si).doublequote(false).quoting(cudf::io::quote_style::NONE);
     cudf::io::table_with_metadata ctable = cudf::io::read_csv(options);
     cudf::table_view tview = ctable.tbl->view();
 
@@ -81,6 +79,18 @@ int main(int argc, char *argv[]) {
         printColumn(shuffledGTable->GetCudfTable()->view().column(0), 0);
         cout << "shuffled table first column nullmask: " << endl;
         printNullMask(shuffledGTable->GetCudfTable()->view().column(0));
+
+        std::string outputFile = "tmp/shuffled-" + std::to_string(myRank) + ".csv";
+        WriteToCsv(shuffledGTable, outputFile);
+        cout << "shuffled table written to the file: " << outputFile << endl;
+
+        std::string sourceFile = "tmp/source-" + std::to_string(myRank) + ".csv";
+        WriteToCsv(sourceGTable, sourceFile);
+        cout << "source table written to the file: " << sourceFile << endl;
+
+        cout << "shuffled table column types: " << endl;
+        tview = shuffledGTable->GetCudfTable()->view();
+        printTableColumnTypes(tview);
     }
 
     ctx->Finalize();
