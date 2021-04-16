@@ -13,6 +13,7 @@
 ##
 
 from pygcylon.ctx.context import CylonContext
+from pygcylon.frame import CDataFrame
 
 from ._version import get_versions
 __version__ = get_versions()['version']
