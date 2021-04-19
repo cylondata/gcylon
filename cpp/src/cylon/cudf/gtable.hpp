@@ -106,12 +106,12 @@ cylon::Status Shuffle(const cudf::table_view & inputTable,
  */
 cylon::Status DistributedJoin(const cudf::table_view & leftTable,
                               const cudf::table_view & rightTable,
-                              const std::shared_ptr<cylon::CylonContext> ctx,
                               const cylon::join::config::JoinConfig &join_config,
+                              std::shared_ptr<cylon::CylonContext> ctx,
                               std::unique_ptr<cudf::table> &table_out);
 
 
-    /**
+/**
 * Shuffles a GTable based on hashes of the given columns
 * @param table
 * @param hash_col_idx vector of column indicies that needs to be hashed

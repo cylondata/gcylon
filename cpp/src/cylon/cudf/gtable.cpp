@@ -184,8 +184,8 @@ cylon::Status Shuffle(std::shared_ptr<GTable> &inputTable,
 
 cylon::Status joinTables(const cudf::table_view & left,
                          const cudf::table_view & right,
-                         const std::shared_ptr<cylon::CylonContext> ctx,
                          const cylon::join::config::JoinConfig &join_config,
+                         std::shared_ptr<cylon::CylonContext> ctx,
                          std::unique_ptr<cudf::table> &table_out) {
 
     if(join_config.GetAlgorithm() == cylon::join::config::JoinAlgorithm::SORT) {
@@ -245,8 +245,8 @@ cylon::Status joinTables(std::shared_ptr<GTable> &left,
     std::unique_ptr<cudf::table> joined;
     RETURN_CYLON_STATUS_IF_FAILED(joinTables(left->GetCudfTable()->view(),
                                              right->GetCudfTable()->view(),
-                                             ctx,
                                              join_config,
+                                             ctx,
                                              joined));
 
     RETURN_CYLON_STATUS_IF_FAILED(
@@ -257,23 +257,25 @@ cylon::Status joinTables(std::shared_ptr<GTable> &left,
     return cylon::Status::OK();
 }
 
-/**
+ /**
  * Similar to local join, but performs the join in a distributed fashion
- * @param left
- * @param right
+  * works on tale_view objects
+ * @param leftTable
+ * @param rightTable
  * @param join_config
- * @param output
- * @return <cylon::Status>
+ * @param ctx
+ * @param table_out
+ * @return
  */
 cylon::Status DistributedJoin(const cudf::table_view & leftTable,
                               const cudf::table_view & rightTable,
-                              const std::shared_ptr<cylon::CylonContext> ctx,
                               const cylon::join::config::JoinConfig &join_config,
+                              std::shared_ptr<cylon::CylonContext> ctx,
                               std::unique_ptr<cudf::table> &table_out) {
 
     if (ctx->GetWorldSize() == 1) {
         // perform single join
-        return joinTables(leftTable, rightTable, ctx, join_config, table_out);
+        return joinTables(leftTable, rightTable, join_config, ctx, table_out);
     }
 
     std::unique_ptr<cudf::table> left_shuffled_table, right_shuffled_table;
@@ -285,12 +287,20 @@ cylon::Status DistributedJoin(const cudf::table_view & leftTable,
             Shuffle(rightTable, join_config.GetRightColumnIdx(), ctx, right_shuffled_table));
 
     RETURN_CYLON_STATUS_IF_FAILED(
-            joinTables(left_shuffled_table->view(), right_shuffled_table->view(), ctx, join_config, table_out));
+            joinTables(left_shuffled_table->view(), right_shuffled_table->view(), join_config, ctx, table_out));
 
     return cylon::Status::OK();
 }
 
-
+/**
+ * Similar to local join, but performs the join in a distributed fashion
+ * works on GTable objects
+ * @param left
+ * @param right
+ * @param join_config
+ * @param output
+ * @return
+ */
 cylon::Status DistributedJoin(std::shared_ptr<GTable> &left,
                               std::shared_ptr<GTable> &right,
                               const cylon::join::config::JoinConfig &join_config,
@@ -316,6 +326,12 @@ cylon::Status DistributedJoin(std::shared_ptr<GTable> &left,
     return cylon::Status::OK();
 }
 
+/**
+ * write GTable to file
+ * @param table
+ * @param outputFile
+ * @return
+ */
 cylon::Status WriteToCsv(std::shared_ptr<GTable> &table, std::string outputFile) {
     cudf::io::sink_info sink_info(outputFile);
     cudf::io::csv_writer_options options =
