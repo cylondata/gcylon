@@ -49,6 +49,7 @@ case $key in
     shift # past argument
     ;;
     --cython)
+    CPP_BUILD="ON"
     CYTHON_BUILD="ON"
     shift # past argument
     ;;
