@@ -21,6 +21,7 @@ from libcpp cimport bool
 from cython.operator cimport dereference as deref
 from pygcylon.ctx.context cimport CCylonContext
 from pygcylon.ctx.context cimport CylonContext
+from pygcylon.api.lib cimport pycylon_unwrap_context
 
 from pygcylon.data.table cimport Shuffle
 
@@ -37,22 +38,14 @@ def shuffle(object tbl, hash_columns, context):
     cdef unique_ptr[table] output
     cdef vector[int] c_hash_columns
     cdef Table outputTable
-    cdef CylonContext c_ctx
-
-    if isinstance(context, CylonContext):
-        c_ctx = <CylonContext> context
-    else:
-        raise ValueError('context must be an instance of CylonContext')
+    cdef shared_ptr[CCylonContext] c_ctx_ptr = pycylon_unwrap_context(context)
 
     if hash_columns:
-        indexColumns = inputTable._num_indices
-        hash_columns = [x + indexColumns for x in hash_columns]
         c_hash_columns = hash_columns
 
-        status = Shuffle(inputTview, c_hash_columns, c_ctx.ctx_shd_ptr, output)
+        status = Shuffle(inputTview, c_hash_columns, c_ctx_ptr, output)
         if status.is_ok():
             outputTable = Table.from_unique_ptr(move(output), inputTable._column_names, index_names=inputTable._index_names)
-#            outputTable = from_unique_ptr(move(output), inputTable._column_names)
             return outputTable
         else:
             raise ValueError(f"Shuffle operation failed : {status.get_msg().decode()}")
@@ -60,33 +53,3 @@ def shuffle(object tbl, hash_columns, context):
         raise ValueError('Hash columns are not provided')
 
 
-cdef Table from_unique_ptr(unique_ptr[table] c_tbl,  object column_names):
-        """
-        Construct a Table from a unique_ptr to a cudf::table.
-
-        Parameters
-        ----------
-        c_tbl : unique_ptr[cudf::table]
-        column_names : iterable
-        """
-        cdef vector[unique_ptr[column]] columns
-        columns = move(c_tbl.get().release())
-
-        cdef vector[unique_ptr[column]].iterator it = columns.begin()
-
-        # Construct the data OrderedColumnDict
-        data_columns = []
-#        for i in column_names:
-        i = 0
-        # ignore the first column
-        # not sure how can be an extra column
-        it += 1
-        while it != columns.end():
-            data_columns.append(Column.from_unique_ptr(move(deref(it))))
-            it += 1
-            i = i + 1
-
-        print("number of columns: ", i)
-        data = dict(zip(column_names, data_columns))
-
-        return Table(data=data)
