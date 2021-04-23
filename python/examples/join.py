@@ -12,6 +12,7 @@ def local_join():
     cdf2 = DataFrame(df2)
     cdf3 = cdf1.join(cdf2)
     print("locally joined df: \n", cdf3.df)
+    print("******************** df1 column Names: \n", list(df1._data.keys()))
 
 
 def dist_join():
@@ -32,14 +33,14 @@ def test_mpi():
     env: CylonEnv = CylonEnv(config=MPIConfig(), distributed=True)
     print("CylonEnv Initialized: My rank: ", env.rank)
     print("finalizing mpi")
-    env.finalize()
+    # env.finalize()
 
 
 #####################################################
 # local join test
-# local_join()
+local_join()
 
 # distributed join
-dist_join()
+# dist_join()
 
 # test_mpi()
