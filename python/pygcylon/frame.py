@@ -59,6 +59,33 @@ class DataFrame(object):
         return cudf.DataFrame._from_table(tbl)
 
     def join(self, other, on=None, how='left', lsuffix='l', rsuffix='r', sort=False, algorithm="hash", env: CylonEnv = None):
+        """Join columns with other DataFrame on index column.
+
+        Parameters
+        ----------
+        other : DataFrame
+        how : str
+            Only accepts "left", "right", "inner", "outer"
+        lsuffix, rsuffix : str
+            The suffices to add to the left (*lsuffix*) and right (*rsuffix*)
+            column names when avoiding conflicts.
+        sort : bool
+            Set to True to ensure sorted ordering.
+
+        Returns
+        -------
+        joined : DataFrame
+
+        Notes
+        -----
+        Difference from pandas:
+
+        - *other* must be a single DataFrame for now.
+        - *on* is not supported yet due to lack of multi-index support.
+        """
+
+        if on:
+            raise ValueError('on is not supported with join method. Please use merge method.')
 
         if env is None:
             joined_df = self._df.join(other=other._df, on=on, how=how, lsuffix=lsuffix, rsuffix=rsuffix, sort=sort, method=algorithm)

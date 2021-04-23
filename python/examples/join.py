@@ -40,6 +40,6 @@ def test_mpi():
 # local_join()
 
 # distributed join
-# dist_join()
+dist_join()
 
-test_mpi()
+# test_mpi()
