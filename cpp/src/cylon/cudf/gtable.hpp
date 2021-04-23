@@ -97,6 +97,21 @@ cylon::Status Shuffle(const cudf::table_view & inputTable,
                       std::unique_ptr<cudf::table> &table_out);
 
 /**
+ * Similar to local join, but performs the join in a distributed fashion
+ * @param left
+ * @param right
+ * @param join_config
+ * @param output
+ * @return <cylon::Status>
+ */
+cylon::Status DistributedJoin(const cudf::table_view & leftTable,
+                              const cudf::table_view & rightTable,
+                              const cylon::join::config::JoinConfig &join_config,
+                              std::shared_ptr<cylon::CylonContext> ctx,
+                              std::unique_ptr<cudf::table> &table_out);
+
+
+/**
 * Shuffles a GTable based on hashes of the given columns
 * @param table
 * @param hash_col_idx vector of column indicies that needs to be hashed
@@ -119,6 +134,14 @@ cylon::Status DistributedJoin(std::shared_ptr<GTable> &left,
                        std::shared_ptr<GTable> &right,
                        const cylon::join::config::JoinConfig &join_config,
                        std::shared_ptr<GTable> &output);
+
+/**
+ * write the csv table to a file
+ * @param table
+ * @param outputFile
+ * @return
+ */
+cylon::Status WriteToCsv(std::shared_ptr<GTable> &table, std::string outputFile);
 
 }// end of namespace gcylon
 

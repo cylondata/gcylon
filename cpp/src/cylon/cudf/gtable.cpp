@@ -105,12 +105,9 @@ cylon::Status all_to_all_cudf_table(std::shared_ptr<cylon::CylonContext> ctx,
     // define call back to catch the receiving tables
     CudfCallback cudf_callback =
             [&received_tables](int source, const std::shared_ptr<cudf::table> &table_, int reference) {
-//                LOG(INFO) << "%%%%%%%%%%%%%%%%%%%%% received a table. columns: " << table_->num_columns()
+//                LOG(INFO) << "%%%%%%%%%%%%%%%%%%%%% received a table. columns: " << table_->num_columns();
 //                    << ", rows: " << table_->num_rows();
                 received_tables.push_back(table_);
-
-//                cudf::column_view cview = table_->view().column(8);
-//                printStringColumnA(cview, 8);
                 return true;
             };
 
@@ -185,6 +182,50 @@ cylon::Status Shuffle(std::shared_ptr<GTable> &inputTable,
     return cylon::Status::OK();
 }
 
+cylon::Status joinTables(const cudf::table_view & left,
+                         const cudf::table_view & right,
+                         const cylon::join::config::JoinConfig &join_config,
+                         std::shared_ptr<cylon::CylonContext> ctx,
+                         std::unique_ptr<cudf::table> &table_out) {
+
+    if(join_config.GetAlgorithm() == cylon::join::config::JoinAlgorithm::SORT) {
+        return cylon::Status(cylon::Code::NotImplemented, "SORT join is not supported on GPUs yet.");
+    }
+
+    // todo: should joined columns repeat on the joined table or not?
+    // todo: should null values match?
+    std::vector<std::pair<cudf::size_type, cudf::size_type>> columns_in_common{};
+
+    if(join_config.GetType() == cylon::join::config::JoinType::INNER) {
+       table_out = cudf::inner_join(left,
+                                    right,
+                                    join_config.GetLeftColumnIdx(),
+                                    join_config.GetRightColumnIdx(),
+                                    columns_in_common);
+    } else if (join_config.GetType() == cylon::join::config::JoinType::LEFT) {
+        table_out = cudf::left_join(left,
+                                    right,
+                                    join_config.GetLeftColumnIdx(),
+                                    join_config.GetRightColumnIdx(),
+                                    columns_in_common);
+    } else if (join_config.GetType() == cylon::join::config::JoinType::RIGHT) {
+        table_out = cudf::left_join(right,
+                                    left,
+                                    join_config.GetRightColumnIdx(),
+                                    join_config.GetLeftColumnIdx(),
+                                    columns_in_common);
+    } else if (join_config.GetType() == cylon::join::config::JoinType::FULL_OUTER) {
+        table_out = cudf::full_join(left,
+                                    right,
+                                    join_config.GetLeftColumnIdx(),
+                                    join_config.GetRightColumnIdx(),
+                                    columns_in_common);
+    }
+
+    return cylon::Status::OK();
+}
+
+
 cylon::Status joinTables(std::shared_ptr<GTable> &left,
                          std::shared_ptr<GTable> &right,
                          const cylon::join::config::JoinConfig &join_config,
@@ -201,36 +242,12 @@ cylon::Status joinTables(std::shared_ptr<GTable> &left,
     }
 
     std::shared_ptr<cylon::CylonContext> ctx = left->GetContext();
-    // todo: should joined columns repeat on the joined table or not?
-    // todo: should null values match?
-    std::vector<std::pair<cudf::size_type, cudf::size_type>> columns_in_common{};
     std::unique_ptr<cudf::table> joined;
-
-    if(join_config.GetType() == cylon::join::config::JoinType::INNER) {
-       joined = cudf::inner_join(left->GetCudfTable()->view(),
-                                 right->GetCudfTable()->view(),
-                                 join_config.GetLeftColumnIdx(),
-                                 join_config.GetRightColumnIdx(),
-                                 columns_in_common);
-    } else if (join_config.GetType() == cylon::join::config::JoinType::LEFT) {
-        joined = cudf::left_join(left->GetCudfTable()->view(),
-                                  right->GetCudfTable()->view(),
-                                  join_config.GetLeftColumnIdx(),
-                                  join_config.GetRightColumnIdx(),
-                                  columns_in_common);
-    } else if (join_config.GetType() == cylon::join::config::JoinType::RIGHT) {
-        joined = cudf::left_join(right->GetCudfTable()->view(),
-                                 left->GetCudfTable()->view(),
-                                 join_config.GetRightColumnIdx(),
-                                 join_config.GetLeftColumnIdx(),
-                                 columns_in_common);
-    } else if (join_config.GetType() == cylon::join::config::JoinType::FULL_OUTER) {
-        joined = cudf::full_join(left->GetCudfTable()->view(),
-                                 right->GetCudfTable()->view(),
-                                 join_config.GetLeftColumnIdx(),
-                                 join_config.GetRightColumnIdx(),
-                                 columns_in_common);
-    }
+    RETURN_CYLON_STATUS_IF_FAILED(joinTables(left->GetCudfTable()->view(),
+                                             right->GetCudfTable()->view(),
+                                             join_config,
+                                             ctx,
+                                             joined));
 
     RETURN_CYLON_STATUS_IF_FAILED(
             GTable::FromCudfTable(ctx, joined, joinedTable));
@@ -240,6 +257,50 @@ cylon::Status joinTables(std::shared_ptr<GTable> &left,
     return cylon::Status::OK();
 }
 
+ /**
+ * Similar to local join, but performs the join in a distributed fashion
+  * works on tale_view objects
+ * @param leftTable
+ * @param rightTable
+ * @param join_config
+ * @param ctx
+ * @param table_out
+ * @return
+ */
+cylon::Status DistributedJoin(const cudf::table_view & leftTable,
+                              const cudf::table_view & rightTable,
+                              const cylon::join::config::JoinConfig &join_config,
+                              std::shared_ptr<cylon::CylonContext> ctx,
+                              std::unique_ptr<cudf::table> &table_out) {
+
+    if (ctx->GetWorldSize() == 1) {
+        // perform single join
+        return joinTables(leftTable, rightTable, join_config, ctx, table_out);
+    }
+
+    std::unique_ptr<cudf::table> left_shuffled_table, right_shuffled_table;
+
+    RETURN_CYLON_STATUS_IF_FAILED(
+            Shuffle(leftTable, join_config.GetLeftColumnIdx(), ctx, left_shuffled_table));
+
+    RETURN_CYLON_STATUS_IF_FAILED(
+            Shuffle(rightTable, join_config.GetRightColumnIdx(), ctx, right_shuffled_table));
+
+    RETURN_CYLON_STATUS_IF_FAILED(
+            joinTables(left_shuffled_table->view(), right_shuffled_table->view(), join_config, ctx, table_out));
+
+    return cylon::Status::OK();
+}
+
+/**
+ * Similar to local join, but performs the join in a distributed fashion
+ * works on GTable objects
+ * @param left
+ * @param right
+ * @param join_config
+ * @param output
+ * @return
+ */
 cylon::Status DistributedJoin(std::shared_ptr<GTable> &left,
                               std::shared_ptr<GTable> &right,
                               const cylon::join::config::JoinConfig &join_config,
@@ -262,6 +323,22 @@ cylon::Status DistributedJoin(std::shared_ptr<GTable> &left,
     RETURN_CYLON_STATUS_IF_FAILED(
             joinTables(left_shuffled_table, right_shuffled_table, join_config, output));
 
+    return cylon::Status::OK();
+}
+
+/**
+ * write GTable to file
+ * @param table
+ * @param outputFile
+ * @return
+ */
+cylon::Status WriteToCsv(std::shared_ptr<GTable> &table, std::string outputFile) {
+    cudf::io::sink_info sink_info(outputFile);
+    cudf::io::csv_writer_options options =
+            cudf::io::csv_writer_options::builder(sink_info, table->GetCudfTable()->view())
+            .metadata(&(table->GetCudfMetadata()))
+            .include_header(true);
+    cudf::io::write_csv(options);
     return cylon::Status::OK();
 }
 
