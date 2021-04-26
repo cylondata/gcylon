@@ -22,6 +22,7 @@ import os
 import sys
 import sysconfig
 import numpy as np
+from os.path import join as pjoin
 
 import versioneer
 from Cython.Build import cythonize
@@ -37,6 +38,47 @@ if ("CONDA_PREFIX" not in os.environ and "CONDA_BUILD" not in os.environ):
     print("Neither CONDA_PREFIX nor CONDA_BUILD is set. Activate conda environment or use conda-build")
     sys.exit()
 
+def find_in_path(name, path):
+    """Find a file in a search path"""
+
+    # Adapted fom http://code.activestate.com/recipes/52224
+    for dir in path.split(os.pathsep):
+        binpath = pjoin(dir, name)
+        if os.path.exists(binpath):
+            return os.path.abspath(binpath)
+    return None
+
+def locate_cuda():
+    """Locate the CUDA environment on the system
+    Returns a dict with keys 'home', 'nvcc', 'include', and 'lib64'
+    and values giving the absolute path to each directory.
+    Starts by looking for the CUDAHOME env variable. If not found,
+    everything is based on finding 'nvcc' in the PATH.
+    from: https://github.com/rmcgibbo/npcuda-example/blob/master/cython/setup.py
+    """
+
+    # First check if the CUDAHOME env variable is in use
+    if 'CUDAHOME' in os.environ:
+        home = os.environ['CUDAHOME']
+        nvcc = pjoin(home, 'bin', 'nvcc')
+    else:
+        # Otherwise, search the PATH for NVCC
+        nvcc = find_in_path('nvcc', os.environ['PATH'])
+        if nvcc is None:
+            raise EnvironmentError('The nvcc binary could not be '
+                                   'located in your $PATH. Either add it to your path, '
+                                   'or set $CUDAHOME')
+        home = os.path.dirname(os.path.dirname(nvcc))
+
+    cudaconfig = {'home': home, 'nvcc': nvcc,
+                  'include': pjoin(home, 'include'),
+                  'lib64': pjoin(home, 'lib64')}
+    for k, v in iter(cudaconfig.items()):
+        if not os.path.exists(v):
+            raise EnvironmentError('The CUDA %s path could not be '
+                                   'located in %s' % (k, v))
+
+    return cudaconfig
 
 # os.environ["CXX"] = "mpic++"
 
@@ -76,24 +118,29 @@ elif "CONDA_BUILD" in os.environ:
     conda_include_dir = os.path.join(os.environ.get('BUILD_PREFIX'), "include") + " "
     conda_include_dir += os.path.join(os.environ.get('PREFIX'), "include")
 
+CUDA = locate_cuda()
+
 print("gcylon_library_directory: ", gcylon_library_directory)
 print("cylon_library_directory: ", cylon_library_directory)
 print("conda_library_directory: ", conda_lib_dir)
+print("cuda_library_directory: ", CUDA['lib64'])
 
 library_directories = [
     gcylon_library_directory,
     cylon_library_directory,
+    CUDA['lib64'],
     conda_lib_dir,
     get_python_lib(),
     os.path.join(os.sys.prefix, "lib")]
 
-libraries = ["gcylon", "cudf", "cylon"]
+libraries = ["gcylon", "cudf", "cylon", "cudart"]
 #libraries = ["gcylon", "cylon", "glog"]
 
 cylon_include_dir = os.path.join(os.environ.get('CYLON_HOME'), "cpp/src/cylon")
 
 _include_dirs = ["../cpp/src/cylon/cudf",
                  cylon_include_dir,
+                 CUDA['include'],
                  conda_include_dir,
                  np.get_include(),
                  os.path.dirname(sysconfig.get_path("include"))]
