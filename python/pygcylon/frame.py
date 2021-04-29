@@ -231,7 +231,6 @@ class DataFrame(object):
                                        sort=sort,
                                        suffixes=suffixes,
                                        method=algorithm)
-            print("merged left: ", merged_df)
             return DataFrame(merged_df)
 
         from cudf.core.join import Merge
@@ -256,12 +255,12 @@ class DataFrame(object):
                                                       right_on,
                                                       left_index,
                                                       right_index)
-        left_on_ind, right_on_ind = self._get_column_indices(self._df,
-                                                             right._df,
-                                                             left_on1,
-                                                             right_on1,
-                                                             left_index,
-                                                             right_index)
+        left_on_ind, right_on_ind = DataFrame._get_left_right_indices(self._df,
+                                                                      right._df,
+                                                                      left_on1,
+                                                                      right_on1,
+                                                                      left_index,
+                                                                      right_index)
 
         shuffled_left = shuffle(self._df, left_on_ind, env)
         shuffled_right = shuffle(right._df, right_on_ind, env)
@@ -307,7 +306,7 @@ class DataFrame(object):
 
 
     @staticmethod
-    def _get_column_indices(lhs, rhs, left_on, right_on, left_index, right_index):
+    def _get_left_right_indices(lhs, rhs, left_on, right_on, left_index, right_index):
         """
         Calculate left and right column indices to perform shuffle on
         this is based on the "join" function in cudf file:
@@ -363,172 +362,6 @@ class DataFrame(object):
                 right_on_ind.append(right_join_cols.index(name))
 
         return left_on_ind, right_on_ind
-
-    @staticmethod
-    def concat(
-            dfs,
-            axis=0,
-            join="outer",
-            ignore_index: bool = False,
-            keys=None,
-            levels=None,
-            names=None,
-            verify_integrity: bool = False,
-            sort: bool = False,
-            copy: bool = True,
-            env: CylonEnv = None
-    ):
-        """Concatenate DataFrames row-wise.
-
-        Parameters
-        ----------
-        dfs: list of DataFrames to concatenate
-        axis: {0/'index', 1/'columns'}, default 0
-            The axis to concatenate along. (Currently only 0 supported)
-        join: {'inner', 'outer'}, default 'outer'
-            How to handle indexes on other axis (or axes).
-        ignore_index: bool, default False
-            Set True to ignore the index of the *dfs* and provide a
-            default range index instead.
-        keys (Unsupported) : sequence, default None
-            If multiple levels passed, should contain tuples. Construct
-            hierarchical index using the passed keys as the outermost level.
-        levels (Unsupported) : list of sequences, default None
-            Specific levels (unique values) to use for constructing a
-            MultiIndex. Otherwise they will be inferred from the keys.
-        names (Unsupported) : list, default None
-            Names for the levels in the resulting hierarchical index.
-        verify_integrity (Unsupported) : bool, default False
-            Check whether the new concatenated axis contains duplicates. This can
-            be very expensive relative to the actual data concatenation.
-        sort : bool, default False
-            Sort non-concatenation axis if it is not already aligned when `join`
-            is 'outer'.
-            This has no effect when ``join='inner'``, which already preserves
-            the order of the non-concatenation axis.
-        copy (Unsupported) : bool, default True
-            If False, do not copy data unnecessarily.
-        env: Cylon environment object
-
-        Returns
-        -------
-        A new DataFrame object constructed by concatenating all input DataFrame objects.
-
-        Examples
-        --------
-
-        Combine two ``DataFrame`` objects with identical columns.
-
-        >>> df1 = DataFrame([['a', 1], ['b', 2]],
-        ...                    columns=['letter', 'number'])
-        >>> df1
-        letter  number
-        0      a       1
-        1      b       2
-        >>> df2 = DataFrame([['c', 3], ['d', 4]],
-        ...                    columns=['letter', 'number'])
-        >>> df2
-        letter  number
-        0      c       3
-        1      d       4
-        >>> DataFrame.concat([df1, df2])
-        letter  number
-        0      a       1
-        1      b       2
-        0      c       3
-        1      d       4
-
-        Combine ``DataFrame`` objects with overlapping columns
-        and return everything. Columns outside the intersection will
-        be filled with ``NaN`` values.
-
-        >>> df3 = DataFrame([['c', 3, 'cat'], ['d', 4, 'dog']],
-        ...                    columns=['letter', 'number', 'animal'])
-        >>> df3
-        letter  number animal
-        0      c       3    cat
-        1      d       4    dog
-        >>> DataFrame.concat([df1, df3], sort=False)
-        letter  number animal
-        0      a       1    NaN
-        1      b       2    NaN
-        0      c       3    cat
-        1      d       4    dog
-
-        Combine ``DataFrame`` objects with overlapping columns
-        and return only those that are shared by passing ``inner`` to
-        the ``join`` keyword argument.
-
-        >>> DataFrame.concat([df1, df3], join="inner")
-        letter  number
-        0      a       1
-        1      b       2
-        0      c       3
-        1      d       4
-
-        (Unsupported) Combine ``DataFrame`` objects horizontally along the x axis by
-        passing in ``axis=1``.
-
-        >>> df4 = DataFrame([['bird', 'polly'], ['monkey', 'george']],
-        ...                    columns=['animal', 'name'])
-        >>> DataFrame.concat([df1, df4], axis=1)
-
-        letter  number  animal    name
-        0      a       1    bird   polly
-        1      b       2  monkey  george
-
-        (Unsupported) Prevent the result from including duplicate index values with the
-        ``verify_integrity`` option.
-
-        >>> df5 = DataFrame([1], index=['a'])
-        >>> df5
-        0
-        a  1
-        >>> df6 = DataFrame([2], index=['a'])
-        >>> df6
-        0
-        a  2
-        >>> DataFrame.concat([df5, df6], verify_integrity=True)
-        Traceback (most recent call last):
-            ...
-        ValueError: Indexes have overlapping values: ['a']
-        """
-
-        if not dfs:
-            raise ValueError("No DataFrames to concatenate")
-
-        # remove None objects if any
-        dfs = [obj for obj in dfs if obj is not None]
-        if len(dfs) == 0:
-            raise ValueError("No DataFrames to concatenate after None removal")
-
-        if axis != 0:
-            raise ValueError("Only concatenation on axis 0 is currently supported")
-
-        if verify_integrity not in (None, False):
-            raise NotImplementedError("verify_integrity parameter is not supported yet.")
-
-        if keys is not None:
-            raise NotImplementedError("keys parameter is not supported yet.")
-
-        if levels is not None:
-            raise NotImplementedError("levels parameter is not supported yet.")
-
-        if names is not None:
-            raise NotImplementedError("names parameter is not supported yet.")
-
-        if not copy:
-            raise NotImplementedError("copy can be only True.")
-
-        # make sure all dfs DataFrame objects
-        for obj in dfs:
-            if not isinstance(obj, DataFrame):
-                raise ValueError("Only DataFrame objects can be concatenated")
-
-        # perform local concatenation, no need to distributed concat
-        dfs = [obj._df for obj in dfs]
-        concated_df = cudf.concat(dfs, axis=axis, join=join, ignore_index=ignore_index, sort=sort)
-        return DataFrame(concated_df)
 
     def _get_column_indices(self) -> List[int]:
         """
@@ -647,6 +480,171 @@ class DataFrame(object):
 
         dropped_df = shuffled_df.drop_duplicates(subset=subset, keep=keep, inplace=inplace, ignore_index=ignore_index)
         return DataFrame(dropped_df) if dropped_df else DataFrame(shuffled_df)
+
+def concat(
+        dfs,
+        axis=0,
+        join="outer",
+        ignore_index: bool = False,
+        keys=None,
+        levels=None,
+        names=None,
+        verify_integrity: bool = False,
+        sort: bool = False,
+        copy: bool = True,
+        env: CylonEnv = None
+):
+    """Concatenate DataFrames row-wise.
+
+    Parameters
+    ----------
+    dfs: list of DataFrames to concatenate
+    axis: {0/'index', 1/'columns'}, default 0
+        The axis to concatenate along. (Currently only 0 supported)
+    join: {'inner', 'outer'}, default 'outer'
+        How to handle indexes on other axis (or axes).
+    ignore_index: bool, default False
+        Set True to ignore the index of the *dfs* and provide a
+        default range index instead.
+    keys (Unsupported) : sequence, default None
+        If multiple levels passed, should contain tuples. Construct
+        hierarchical index using the passed keys as the outermost level.
+    levels (Unsupported) : list of sequences, default None
+        Specific levels (unique values) to use for constructing a
+        MultiIndex. Otherwise they will be inferred from the keys.
+    names (Unsupported) : list, default None
+        Names for the levels in the resulting hierarchical index.
+    verify_integrity (Unsupported) : bool, default False
+        Check whether the new concatenated axis contains duplicates. This can
+        be very expensive relative to the actual data concatenation.
+    sort : bool, default False
+        Sort non-concatenation axis if it is not already aligned when `join`
+        is 'outer'.
+        This has no effect when ``join='inner'``, which already preserves
+        the order of the non-concatenation axis.
+    copy (Unsupported) : bool, default True
+        If False, do not copy data unnecessarily.
+    env: Cylon environment object
+
+    Returns
+    -------
+    A new DataFrame object constructed by concatenating all input DataFrame objects.
+
+    Examples
+    --------
+
+    Combine two ``DataFrame`` objects with identical columns.
+
+    >>> df1 = DataFrame([['a', 1], ['b', 2]],
+    ...                    columns=['letter', 'number'])
+    >>> df1
+    letter  number
+    0      a       1
+    1      b       2
+    >>> df2 = DataFrame([['c', 3], ['d', 4]],
+    ...                    columns=['letter', 'number'])
+    >>> df2
+    letter  number
+    0      c       3
+    1      d       4
+    >>> DataFrame.concat([df1, df2])
+    letter  number
+    0      a       1
+    1      b       2
+    0      c       3
+    1      d       4
+
+    Combine ``DataFrame`` objects with overlapping columns
+    and return everything. Columns outside the intersection will
+    be filled with ``NaN`` values.
+
+    >>> df3 = DataFrame([['c', 3, 'cat'], ['d', 4, 'dog']],
+    ...                    columns=['letter', 'number', 'animal'])
+    >>> df3
+    letter  number animal
+    0      c       3    cat
+    1      d       4    dog
+    >>> DataFrame.concat([df1, df3], sort=False)
+    letter  number animal
+    0      a       1    NaN
+    1      b       2    NaN
+    0      c       3    cat
+    1      d       4    dog
+
+    Combine ``DataFrame`` objects with overlapping columns
+    and return only those that are shared by passing ``inner`` to
+    the ``join`` keyword argument.
+
+    >>> DataFrame.concat([df1, df3], join="inner")
+    letter  number
+    0      a       1
+    1      b       2
+    0      c       3
+    1      d       4
+
+    (Unsupported) Combine ``DataFrame`` objects horizontally along the x axis by
+    passing in ``axis=1``.
+
+    >>> df4 = DataFrame([['bird', 'polly'], ['monkey', 'george']],
+    ...                    columns=['animal', 'name'])
+    >>> DataFrame.concat([df1, df4], axis=1)
+
+    letter  number  animal    name
+    0      a       1    bird   polly
+    1      b       2  monkey  george
+
+    (Unsupported) Prevent the result from including duplicate index values with the
+    ``verify_integrity`` option.
+
+    >>> df5 = DataFrame([1], index=['a'])
+    >>> df5
+    0
+    a  1
+    >>> df6 = DataFrame([2], index=['a'])
+    >>> df6
+    0
+    a  2
+    >>> DataFrame.concat([df5, df6], verify_integrity=True)
+    Traceback (most recent call last):
+        ...
+    ValueError: Indexes have overlapping values: ['a']
+    """
+
+    if not dfs:
+        raise ValueError("No DataFrames to concatenate")
+
+    # remove None objects if any
+    dfs = [obj for obj in dfs if obj is not None]
+    if len(dfs) == 0:
+        raise ValueError("No DataFrames to concatenate after None removal")
+
+    if axis != 0:
+        raise ValueError("Only concatenation on axis 0 is currently supported")
+
+    if verify_integrity not in (None, False):
+        raise NotImplementedError("verify_integrity parameter is not supported yet.")
+
+    if keys is not None:
+        raise NotImplementedError("keys parameter is not supported yet.")
+
+    if levels is not None:
+        raise NotImplementedError("levels parameter is not supported yet.")
+
+    if names is not None:
+        raise NotImplementedError("names parameter is not supported yet.")
+
+    if not copy:
+        raise NotImplementedError("copy can be only True.")
+
+    # make sure all dfs DataFrame objects
+    for obj in dfs:
+        if not isinstance(obj, DataFrame):
+            raise ValueError("Only DataFrame objects can be concatenated")
+
+    # perform local concatenation, no need to distributed concat
+    dfs = [obj._df for obj in dfs]
+    concated_df = cudf.concat(dfs, axis=axis, join=join, ignore_index=ignore_index, sort=sort)
+    return DataFrame(concated_df)
 
 
 def shuffle(df: cudf.DataFrame, hash_columns, env: CylonEnv = None) -> cudf.DataFrame:

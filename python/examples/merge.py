@@ -1,25 +1,24 @@
 import cudf
 import cupy as cp
-from pygcylon import DataFrame, CylonEnv
-from pygcylon.net.mpi_config import MPIConfig
+import pygcylon
 
 def local_merge():
-    df1 = cudf.DataFrame({'first': cp.random.rand(6), 'second': cp.random.rand(6)})
-    df2 = cudf.DataFrame({'first': cp.random.rand(6), 'second': cp.random.rand(6)})
+    df1 = cudf.DataFrame({'first': cp.random.randint(100, 110, 5), 'second': cp.random.randint(100, 110, 5)})
+    df2 = cudf.DataFrame({'first': cp.random.randint(100, 110, 5), 'second': cp.random.randint(100, 110, 5)})
     print("df1: \n", df1)
     print("df2: \n", df2)
-    cdf1 = DataFrame(df1)
-    cdf2 = DataFrame(df2)
-    cdf3 = cdf1.merge(right=cdf2, how="left", on=None, left_index=False, right_index=False)
+    cdf1 = pygcylon.DataFrame(df1)
+    cdf2 = pygcylon.DataFrame(df2)
+    cdf3 = cdf1.merge(right=cdf2, how="left", on="first", left_index=False, right_index=False)
     print("locally merged df: \n", cdf3.df)
 
 
 def dist_merge():
-    env: CylonEnv = CylonEnv(config=MPIConfig(), distributed=True)
+    env: pygcylon.CylonEnv = pygcylon.CylonEnv(config=pygcylon.MPIConfig(), distributed=True)
     print("CylonEnv Initialized: My rank: ", env.rank)
 
-    df1 = cudf.DataFrame({'first': cp.random.rand(6), 'second': cp.random.rand(6)})
-    df2 = cudf.DataFrame({'first': cp.random.rand(6), 'second': cp.random.rand(6)})
+    df1 = cudf.DataFrame({'first': cp.random.randint(100, 110, 5), 'second': cp.random.randint(100, 110, 5)})
+    df2 = cudf.DataFrame({'first': cp.random.randint(100, 110, 5), 'second': cp.random.randint(100, 110, 5)})
 
     arrays = [['a', 'a', 'b', 'b', 'c', 'c'], [1, 2, 3, 4, 5, 6]]
     tuples = list(zip(*arrays))
@@ -28,8 +27,8 @@ def dist_merge():
     # df2.index = idx
     print(df1)
     print(df2)
-    cdf1 = DataFrame(df1)
-    cdf2 = DataFrame(df2)
+    cdf1 = pygcylon.DataFrame(df1)
+    cdf2 = pygcylon.DataFrame(df2)
     cdf3 = cdf1.merge(right=cdf2, on="first", how="left", left_on=None, right_on=None, left_index=False, right_index=False, env=env)
     print("distributed joined df:\n", cdf3.df)
     env.finalize()
@@ -39,6 +38,4 @@ def dist_merge():
 local_merge()
 
 # distributed join
-#dist_merge()
-
-# test_mpi()
+# dist_merge()
