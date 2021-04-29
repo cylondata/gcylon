@@ -1,7 +1,7 @@
-from typing import List
+from typing import Hashable, List, Dict, Optional, Sequence, Union
 from cudf import _lib as libcudf
 import cudf
-from pygcylon.data.table import shuffle
+from pygcylon.data.table import shuffle as tshuffle
 from pygcylon.ctx.context import CylonContext
 
 class CylonEnv(object):
@@ -54,10 +54,6 @@ class DataFrame(object):
     def df(self) -> cudf.DataFrame:
         return self._df
 
-    def shuffle(self, hash_columns, env: CylonEnv = None) -> cudf.DataFrame:
-        tbl = shuffle(self._df, hash_columns, env.context)
-        return cudf.DataFrame._from_table(tbl)
-
     def join(self, other, on=None, how='left', lsuffix='l', rsuffix='r', sort=False, algorithm="hash", env: CylonEnv = None):
         """Join columns with other DataFrame on index column.
 
@@ -99,10 +95,10 @@ class DataFrame(object):
 
         # shuffle dataframes on index columns
         hash_columns = [*range(self._df._num_indices)]
-        shuffled_left = self.shuffle(hash_columns, env)
+        shuffled_left = shuffle(self._df, hash_columns, env)
 
         hash_columns = [*range(other._df._num_indices)]
-        shuffled_right = other.shuffle(hash_columns, env)
+        shuffled_right = shuffle(other._df, hash_columns, env)
 
         joined_df = shuffled_left.join(shuffled_right,
                                        on=on,
@@ -267,8 +263,8 @@ class DataFrame(object):
                                                              left_index,
                                                              right_index)
 
-        shuffled_left = self.shuffle(left_on_ind, env)
-        shuffled_right = right.shuffle(right_on_ind, env)
+        shuffled_left = shuffle(self._df, left_on_ind, env)
+        shuffled_right = shuffle(right._df, right_on_ind, env)
 
         merged_df = shuffled_left.merge(right=shuffled_right,
                                         on=on,
@@ -534,6 +530,14 @@ class DataFrame(object):
         concated_df = cudf.concat(dfs, axis=axis, join=join, ignore_index=ignore_index, sort=sort)
         return DataFrame(concated_df)
 
+    def _get_column_indices(self) -> List[int]:
+        """
+        Get the column indices excluding index columns
+        :return: list of ints
+        """
+        lists = DataFrame._get_all_column_indices([self])
+        return lists[0]
+
     @staticmethod
     def _get_all_column_indices(dfs) -> List[List[int]]:
         """
@@ -547,7 +551,6 @@ class DataFrame(object):
         for cdf in dfs:
             df_indices = [*range(cdf._df._num_indices, cdf._df._num_indices + cdf._df._num_columns)]
             all_df_indices.append(df_indices)
-            print("indices: ", df_indices)
         return all_df_indices
 
     @staticmethod
@@ -566,7 +569,6 @@ class DataFrame(object):
         if len(common_columns_names) == 0:
             raise ValueError("There is no common column names among the provided DataFrame objects")
 
-        print("common column names: ", common_columns_names)
         all_df_indices = [];
         for cdf in dfs:
             df_indices = []
@@ -574,7 +576,6 @@ class DataFrame(object):
             for name in common_columns_names:
                 df_indices.append(col_names.index(name))
             all_df_indices.append(df_indices)
-            print("indices: ", df_indices)
         return all_df_indices
 
     @staticmethod
@@ -589,3 +590,72 @@ class DataFrame(object):
         for column_names in column_name_lists[1:]:
             common_column_names = common_column_names & set(column_names)
         return common_column_names
+
+    def drop_duplicates(
+            self,
+            subset: Optional[Union[Hashable, Sequence[Hashable]]] = None,
+            keep: Union[str, bool] = "first",
+            inplace: bool = False,
+            ignore_index: bool = False,
+            env: CylonEnv = None) :
+        """
+        Remove duplicate rows from the DataFrame.
+        Considering certain columns is optional. Indexes, including time indexes
+        are ignored.
+
+        Parameters
+        ----------
+        subset : column label or sequence of labels, optional
+            Only consider certain columns for identifying duplicates, by
+            default use all of the columns.
+        keep : {'first', 'last', False}, default 'first'
+            Determines which duplicates (if any) to keep.
+            - ``first`` : Drop duplicates except for the first occurrence.
+            - ``last`` : Drop duplicates except for the last occurrence.
+            - False: Drop all duplicates.
+        inplace : bool, default False
+            Whether to drop duplicates in place or to return a copy.
+            inplace is supported only in local mode
+            when there are multiple workers in the computation, inplace is disabled
+        ignore_index : bool, default False
+            If True, the resulting axis will be labeled 0, 1, …, n - 1.
+        env: CylonEnv object
+
+        Returns
+        -------
+        DataFrame or None
+            DataFrame with duplicates removed or
+            None if ``inplace=True`` and in the local mode with no distributed workers.
+        """
+
+        if env is None or env.world_size == 1:
+            dropped_df = self._df.drop_duplicates(subset=subset, keep=keep, inplace=inplace, ignore_index=ignore_index)
+            return DataFrame(dropped_df) if not inplace else None
+
+        shuffle_column_indices = []
+        if subset is None:
+            shuffle_column_indices = self._get_column_indices()
+        elif isinstance(subset, str):
+            shuffle_column_indices.append(self._df._num_indices + self._df._column_names.index(subset))
+        elif len(subset) == 0:
+            raise ValueError("subset is empty. it should be either None or sequence of column names")
+        else:
+            for name in subset:
+                shuffle_column_indices.append(self._df._num_indices + self._df._column_names.index(name))
+
+        shuffled_df = shuffle(self._df, shuffle_column_indices, env)
+
+        dropped_df = shuffled_df.drop_duplicates(subset=subset, keep=keep, inplace=inplace, ignore_index=ignore_index)
+        return DataFrame(dropped_df) if dropped_df else DataFrame(shuffled_df)
+
+
+def shuffle(df: cudf.DataFrame, hash_columns, env: CylonEnv = None) -> cudf.DataFrame:
+    """
+    Perform shuffle on a distributed dataframe
+    :param df: local DataFrame object
+    :param hash_columns: column indices to partition the table
+    :param env: CylonEnv
+    :return: shuffled dataframe as a new object
+    """
+    tbl = tshuffle(df, hash_columns, env.context)
+    return cudf.DataFrame._from_table(tbl)
