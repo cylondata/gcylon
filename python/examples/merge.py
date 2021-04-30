@@ -1,20 +1,20 @@
 import cudf
 import cupy as cp
-import pygcylon
+import pygcylon as gc
 
 def local_merge():
     df1 = cudf.DataFrame({'first': cp.random.randint(100, 110, 5), 'second': cp.random.randint(100, 110, 5)})
     df2 = cudf.DataFrame({'first': cp.random.randint(100, 110, 5), 'second': cp.random.randint(100, 110, 5)})
     print("df1: \n", df1)
     print("df2: \n", df2)
-    cdf1 = pygcylon.DataFrame(df1)
-    cdf2 = pygcylon.DataFrame(df2)
+    cdf1 = gc.DataFrame(df1)
+    cdf2 = gc.DataFrame(df2)
     cdf3 = cdf1.merge(right=cdf2, how="left", on="first", left_index=False, right_index=False)
     print("locally merged df: \n", cdf3.df)
 
 
 def dist_merge():
-    env: pygcylon.CylonEnv = pygcylon.CylonEnv(config=pygcylon.MPIConfig(), distributed=True)
+    env: gc.CylonEnv = gc.CylonEnv(config=gc.MPIConfig(), distributed=True)
     print("CylonEnv Initialized: My rank: ", env.rank)
 
     df1 = cudf.DataFrame({'first': cp.random.randint(100, 110, 5), 'second': cp.random.randint(100, 110, 5)})
@@ -27,8 +27,8 @@ def dist_merge():
     # df2.index = idx
     print(df1)
     print(df2)
-    cdf1 = pygcylon.DataFrame(df1)
-    cdf2 = pygcylon.DataFrame(df2)
+    cdf1 = gc.DataFrame(df1)
+    cdf2 = gc.DataFrame(df2)
     cdf3 = cdf1.merge(right=cdf2, on="first", how="left", left_on=None, right_on=None, left_index=False, right_index=False, env=env)
     print("distributed joined df:\n", cdf3.df)
     env.finalize()
