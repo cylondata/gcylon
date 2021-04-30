@@ -1,8 +1,9 @@
+from __future__ import annotations
 from typing import Hashable, List, Dict, Optional, Sequence, Union
 import cudf
-from pygcylon import DataFrame
 from pygcylon.data.table import shuffle as tshuffle
 from pygcylon.ctx.context import CylonContext
+
 
 class CylonEnv(object):
 
@@ -285,7 +286,6 @@ class DataFrame(object):
                                         method=algorithm)
         return DataFrame(merged_df)
 
-
     @staticmethod
     def _get_left_right_on(lhs, rhs, on, left_on, right_on, left_index, right_index):
         """
@@ -311,7 +311,6 @@ class DataFrame(object):
             left_on = right_on = list(same_named_columns)
 
         return left_on, right_on
-
 
     @staticmethod
     def _get_left_right_indices(lhs, rhs, left_on, right_on, left_index, right_index):
@@ -488,6 +487,166 @@ class DataFrame(object):
 
         dropped_df = shuffled_df.drop_duplicates(subset=subset, keep=keep, inplace=inplace, ignore_index=ignore_index)
         return DataFrame(dropped_df) if dropped_df else DataFrame(shuffled_df)
+
+    def set_index(
+            self,
+            keys,
+            drop=True,
+            append=False,
+            inplace=False,
+            verify_integrity=False,
+    ) -> Union[DataFrame or None]:
+        """Return a new DataFrame with a new index
+
+        Parameters
+        ----------
+        keys : Index, Series-convertible, label-like, or list
+            Index : the new index.
+            Series-convertible : values for the new index.
+            Label-like : Label of column to be used as index.
+            List : List of items from above.
+        drop : boolean, default True
+            Whether to drop corresponding column for str index argument
+        append : boolean, default True
+            Whether to append columns to the existing index,
+            resulting in a MultiIndex.
+        inplace : boolean, default False
+            Modify the DataFrame in place (do not create a new object).
+        verify_integrity : boolean, default False
+            Check for duplicates in the new index.
+
+        Returns
+        -------
+        DataFrame or None
+            DataFrame with a new index or
+            None if ``inplace=True``
+
+        Examples
+        --------
+        >>> df = cudf.DataFrame({
+        ...     "a": [1, 2, 3, 4, 5],
+        ...     "b": ["a", "b", "c", "d","e"],
+        ...     "c": [1.0, 2.0, 3.0, 4.0, 5.0]
+        ... })
+        >>> df
+           a  b    c
+        0  1  a  1.0
+        1  2  b  2.0
+        2  3  c  3.0
+        3  4  d  4.0
+        4  5  e  5.0
+
+        Set the index to become the ‘b’ column:
+
+        >>> df.set_index('b')
+           a    c
+        b
+        a  1  1.0
+        b  2  2.0
+        c  3  3.0
+        d  4  4.0
+        e  5  5.0
+
+        Create a MultiIndex using columns ‘a’ and ‘b’:
+
+        >>> df.set_index(["a", "b"])
+               c
+        a b
+        1 a  1.0
+        2 b  2.0
+        3 c  3.0
+        4 d  4.0
+        5 e  5.0
+
+        Set new Index instance as index:
+
+        >>> df.set_index(cudf.RangeIndex(10, 15))
+            a  b    c
+        10  1  a  1.0
+        11  2  b  2.0
+        12  3  c  3.0
+        13  4  d  4.0
+        14  5  e  5.0
+
+        Setting `append=True` will combine current index with column `a`:
+
+        >>> df.set_index("a", append=True)
+             b    c
+          a
+        0 1  a  1.0
+        1 2  b  2.0
+        2 3  c  3.0
+        3 4  d  4.0
+        4 5  e  5.0
+
+        `set_index` supports `inplace` parameter too:
+
+        >>> df.set_index("a", inplace=True)
+        >>> df
+           b    c
+        a
+        1  a  1.0
+        2  b  2.0
+        3  c  3.0
+        4  d  4.0
+        5  e  5.0
+        """
+
+        indexed_df = self.df.set_index(keys=keys, drop=drop, append=append, inplace=inplace,
+                                       verify_integrity=verify_integrity)
+        return DataFrame(indexed_df) if indexed_df else None
+
+    def reset_index(
+            self, level=None, drop=False, inplace=False, col_level=0, col_fill=""
+    ) -> Union[DataFrame or None]:
+        """
+        Reset the index.
+
+        Reset the index of the DataFrame, and use the default one instead.
+
+        Parameters
+        ----------
+        drop : bool, default False
+            Do not try to insert index into dataframe columns. This resets
+            the index to the default integer index.
+        inplace : bool, default False
+            Modify the DataFrame in place (do not create a new object).
+
+        Returns
+        -------
+        DataFrame or None
+            DataFrame with the new index or None if ``inplace=True``.
+
+        Examples
+        --------
+        >>> df = cudf.DataFrame([('bird', 389.0),
+        ...                    ('bird', 24.0),
+        ...                    ('mammal', 80.5),
+        ...                    ('mammal', np.nan)],
+        ...                   index=['falcon', 'parrot', 'lion', 'monkey'],
+        ...                   columns=('class', 'max_speed'))
+        >>> df
+                 class max_speed
+        falcon    bird     389.0
+        parrot    bird      24.0
+        lion    mammal      80.5
+        monkey  mammal      <NA>
+        >>> df.reset_index()
+            index   class max_speed
+        0  falcon    bird     389.0
+        1  parrot    bird      24.0
+        2    lion  mammal      80.5
+        3  monkey  mammal      <NA>
+        >>> df.reset_index(drop=True)
+            class max_speed
+        0    bird     389.0
+        1    bird      24.0
+        2  mammal      80.5
+        3  mammal      <NA>
+        """
+        indexed_df = self._df.reset_index(level=level, drop=drop, inplace=inplace, col_level=col_level, col_fill=col_fill)
+        return DataFrame(indexed_df) if indexed_df else None
+
 
 def concat(
         dfs,

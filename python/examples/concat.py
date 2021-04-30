@@ -27,9 +27,23 @@ def dist_concat():
     print("distributed concated df:\n", cdf3.df)
     env.finalize()
 
+def set_index():
+    df1 = cudf.DataFrame({'first': cp.random.randint(100, 110, 20), 'second': cp.random.randint(100, 110, 20)})
+    print("df1: \n", df1)
+    cdf1 = gc.DataFrame(df1)
+    cdf2 = cdf1.set_index("first")
+    print("set index to first: \n")
+    print(cdf2.df)
+    cdf3 = cdf2.reset_index()
+    print("index reset: \n", cdf3.df)
+
+
 #####################################################
 # local join test
 # drop_cuplicates()
 
 # distributed join
-dist_concat()
+# dist_concat()
+
+# set index
+set_index()
