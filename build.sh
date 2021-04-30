@@ -228,6 +228,8 @@ build_python() {
   export GCYLON_HOME=${PWD}
   echo "GCYLON_HOME: ${GCYLON_HOME}"
 
+  export PARALLEL_LEVEL=4
+
   # shellcheck disable=SC1090
   read_python_requirements
 #  check_python_pre_requisites
