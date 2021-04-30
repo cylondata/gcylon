@@ -13,8 +13,12 @@
 ##
 
 from pygcylon.ctx.context import CylonContext
-from pygcylon.frame import CylonEnv
-from pygcylon.frame import DataFrame
+from pygcylon.net.mpi_config import MPIConfig
+from pygcylon.frame import (
+    CylonEnv,
+    DataFrame,
+    concat
+)
 
 from ._version import get_versions
 __version__ = get_versions()['version']
