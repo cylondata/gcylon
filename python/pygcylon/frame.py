@@ -1,6 +1,6 @@
 from typing import Hashable, List, Dict, Optional, Sequence, Union
-from cudf import _lib as libcudf
 import cudf
+from pygcylon import DataFrame
 from pygcylon.data.table import shuffle as tshuffle
 from pygcylon.ctx.context import CylonContext
 
@@ -54,7 +54,15 @@ class DataFrame(object):
     def df(self) -> cudf.DataFrame:
         return self._df
 
-    def join(self, other, on=None, how='left', lsuffix='l', rsuffix='r', sort=False, algorithm="hash", env: CylonEnv = None):
+    def join(self,
+             other,
+             on=None,
+             how='left',
+             lsuffix='l',
+             rsuffix='r',
+             sort=False,
+             algorithm="hash",
+             env: CylonEnv = None) -> DataFrame:
         """Join columns with other DataFrame on index column.
 
         Parameters
@@ -123,7 +131,7 @@ class DataFrame(object):
               copy=True,
               indicator=False,
               validate=None,
-              env: CylonEnv = None):
+              env: CylonEnv = None) -> DataFrame:
         """Merge GPU DataFrame objects by performing a database-style join
         operation by columns or indexes.
 
@@ -430,7 +438,7 @@ class DataFrame(object):
             keep: Union[str, bool] = "first",
             inplace: bool = False,
             ignore_index: bool = False,
-            env: CylonEnv = None) :
+            env: CylonEnv = None) -> Union[DataFrame or None]:
         """
         Remove duplicate rows from the DataFrame.
         Considering certain columns is optional. Indexes, including time indexes
@@ -493,7 +501,7 @@ def concat(
         sort: bool = False,
         copy: bool = True,
         env: CylonEnv = None
-):
+) -> DataFrame:
     """Concatenate DataFrames row-wise.
 
     Parameters
