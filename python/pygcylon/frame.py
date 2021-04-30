@@ -45,11 +45,57 @@ class CylonEnv(object):
 
 class DataFrame(object):
 
-    def __init__(self, df):
-        if (df is not None) and isinstance(df, cudf.DataFrame):
-            self._df = df
-        else:
-            raise ValueError('A cudf.DataFrame object must be provided.')
+    def __init__(self, data=None, index=None, columns=None, dtype=None):
+        """
+        A GPU Dataframe object.
+
+        Parameters
+        ----------
+        data : array-like, Iterable, dict, or DataFrame.
+            Dict can contain Series, arrays, constants, or list-like objects.
+
+        index : Index or array-like
+            Index to use for resulting frame. Will default to
+            RangeIndex if no indexing information part of input data and
+            no index provided.
+
+        columns : Index or array-like
+            Column labels to use for resulting frame.
+            Will default to RangeIndex (0, 1, 2, …, n) if no column
+            labels are provided.
+
+        dtype : dtype, default None
+            Data type to force. Only a single dtype is allowed.
+            If None, infer.
+        """
+        self._df = cudf.DataFrame(data=data, index=index, columns=columns, dtype=dtype)
+
+    def __repr__(self):
+        return self._df.__repr__()
+
+    def __str__(self):
+        return self._df.__str__()
+
+    def __setitem__(self, key, value):
+        self._df.__setitem__(arg=key, value=value)
+
+    def __getitem__(self, arg):
+        return self._df.__getitem__(arg=arg)
+
+    def __setattr__(self, key, col):
+        self._df.__setattr__(key=key, col=col)
+
+    def __getattr__(self, key):
+        return self._df.__getattr__(key=key)
+
+    def __delitem__(self, name):
+        self._df.__delitem__(name=name)
+
+    def __dir__(self):
+        return self._df.__dir__()
+
+    def __sizeof__(self):
+        return self._df.__sizeof__()
 
     @property
     def df(self) -> cudf.DataFrame:

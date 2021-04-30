@@ -1,4 +1,3 @@
-import cudf
 import cupy as cp
 import pygcylon as gc
 
@@ -15,10 +14,10 @@ print("CylonContext Initialized: My rank: ", env.rank)
 #idx = cudf.MultiIndex.from_tuples(tuples)
 
 start = 100 * env.rank
-df = cudf.DataFrame({'first': cp.random.randint(start, start + 10, 10), 'second': cp.random.randint(start, start + 10, 10)})
+df = gc.DataFrame({'first': cp.random.randint(start, start + 10, 10), 'second': cp.random.randint(start, start + 10, 10)})
 print("initial df from rank: ", env.rank, "\n", df)
 
-hash_columns = [df._num_indices + 0]
+hash_columns = [df.df._num_indices + 0]
 shuffledDF = gc.frame.shuffle(df, hash_columns, env)
 
 print("shuffled df from rank: ", env.rank, "\n", shuffledDF)

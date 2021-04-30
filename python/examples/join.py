@@ -1,31 +1,25 @@
-import cudf
 import cupy as cp
 import pygcylon as gc
 
 def local_join():
-    df1 = cudf.DataFrame({'first': cp.random.rand(10), 'second': cp.random.rand(10)})
-    df2 = cudf.DataFrame({'first': cp.random.rand(10), 'second': cp.random.rand(10)})
+    df1 = gc.DataFrame({'first': cp.random.rand(10), 'second': cp.random.rand(10)})
+    df2 = gc.DataFrame({'first': cp.random.rand(10), 'second': cp.random.rand(10)})
     print("df1: \n", df1)
     print("df2: \n", df2)
-    cdf1 = gc.DataFrame(df1)
-    cdf2 = gc.DataFrame(df2)
-    cdf3 = cdf1.join(cdf2)
-    print("locally joined df: \n", cdf3.df)
-    print("******************** df1 column Names: \n", list(df1._data.keys()))
+    df3 = df1.join(df2)
+    print("locally joined df: \n", df3)
 
 
 def dist_join():
     env: gc.CylonEnv = gc.CylonEnv(config=gc.MPIConfig(), distributed=True)
     print("CylonEnv Initialized: My rank: ", env.rank)
 
-    df1 = cudf.DataFrame({'first': cp.random.rand(10), 'second': cp.random.rand(10)})
-    df2 = cudf.DataFrame({'first': cp.random.rand(10), 'second': cp.random.rand(10)})
+    df1 = gc.DataFrame({'first': cp.random.rand(10), 'second': cp.random.rand(10)})
+    df2 = gc.DataFrame({'first': cp.random.rand(10), 'second': cp.random.rand(10)})
     print(df1)
     print(df2)
-    cdf1 = gc.DataFrame(df1)
-    cdf2 = gc.DataFrame(df2)
-    cdf3 = cdf1.join(other=cdf2, env=env)
-    print("distributed joined df:\n", cdf3.df)
+    df3 = df1.join(other=df2, env=env)
+    print("distributed joined df:\n", df3)
     env.finalize()
 
 def test_mpi():
