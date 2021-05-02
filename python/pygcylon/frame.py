@@ -83,10 +83,16 @@ class DataFrame(object):
         return self._df.__getitem__(arg=arg)
 
     def __setattr__(self, key, col):
-        self._df.__setattr__(key=key, col=col)
+        if key == "_df":
+            super().__setattr__(key, col) if isinstance(col, cudf.DataFrame) \
+                else ValueError("_df has to be an instance of cudf.DataFrame")
+        elif self._df:
+            self._df.__setattr__(key=key, col=col)
+        else:
+            raise ValueError("Invalid attribute setting attempt")
 
     def __getattr__(self, key):
-        return self._df.__getattr__(key=key)
+        return self._df if key == "_df" else self._df.__getattr__(key=key)
 
     def __delitem__(self, name):
         self._df.__delitem__(name=name)
@@ -97,9 +103,15 @@ class DataFrame(object):
     def __sizeof__(self):
         return self._df.__sizeof__()
 
-    @property
-    def df(self) -> cudf.DataFrame:
-        return self._df
+    @staticmethod
+    def from_cudf_datafame(cdf) -> DataFrame:
+        if (cdf is not None) and isinstance(cdf, cudf.DataFrame):
+            df = DataFrame()
+            df._df = cdf
+            return df
+        else:
+            raise ValueError('A cudf.DataFrame object must be provided.')
+
 
     def join(self,
              other,
@@ -146,7 +158,7 @@ class DataFrame(object):
                                       rsuffix=rsuffix,
                                       sort=sort,
                                       method=algorithm)
-            return DataFrame(joined_df)
+            return DataFrame.from_cudf_datafame(joined_df)
 
         # shuffle dataframes on index columns
         hash_columns = [*range(self._df._num_indices)]
@@ -162,7 +174,7 @@ class DataFrame(object):
                                        rsuffix=rsuffix,
                                        sort=sort,
                                        method=algorithm)
-        return DataFrame(joined_df)
+        return DataFrame.from_cudf_datafame(joined_df)
 
     def merge(self,
               right,
@@ -286,7 +298,7 @@ class DataFrame(object):
                                        sort=sort,
                                        suffixes=suffixes,
                                        method=algorithm)
-            return DataFrame(merged_df)
+            return DataFrame.from_cudf_datafame(merged_df)
 
         from cudf.core.join import Merge
         # just for checking purposes, we assign "left" to how if it is "right"
@@ -330,7 +342,7 @@ class DataFrame(object):
                                         sort=sort,
                                         suffixes=suffixes,
                                         method=algorithm)
-        return DataFrame(merged_df)
+        return DataFrame.from_cudf_datafame(merged_df)
 
     @staticmethod
     def _get_left_right_on(lhs, rhs, on, left_on, right_on, left_index, right_index):
@@ -516,7 +528,7 @@ class DataFrame(object):
 
         if env is None or env.world_size == 1:
             dropped_df = self._df.drop_duplicates(subset=subset, keep=keep, inplace=inplace, ignore_index=ignore_index)
-            return DataFrame(dropped_df) if not inplace else None
+            return DataFrame.from_cudf_datafame(dropped_df) if not inplace else None
 
         shuffle_column_indices = []
         if subset is None:
@@ -532,7 +544,7 @@ class DataFrame(object):
         shuffled_df = shuffle(self._df, shuffle_column_indices, env)
 
         dropped_df = shuffled_df.drop_duplicates(subset=subset, keep=keep, inplace=inplace, ignore_index=ignore_index)
-        return DataFrame(dropped_df) if dropped_df else DataFrame(shuffled_df)
+        return DataFrame.from_cudf_datafame(dropped_df) if dropped_df else DataFrame.from_cudf_datafame(shuffled_df)
 
     def set_index(
             self,
@@ -638,9 +650,9 @@ class DataFrame(object):
         5  e  5.0
         """
 
-        indexed_df = self.df.set_index(keys=keys, drop=drop, append=append, inplace=inplace,
+        indexed_df = self._df.set_index(keys=keys, drop=drop, append=append, inplace=inplace,
                                        verify_integrity=verify_integrity)
-        return DataFrame(indexed_df) if indexed_df else None
+        return DataFrame.from_cudf_datafame(indexed_df) if indexed_df else None
 
     def reset_index(
             self, level=None, drop=False, inplace=False, col_level=0, col_fill=""
@@ -691,7 +703,7 @@ class DataFrame(object):
         3  mammal      <NA>
         """
         indexed_df = self._df.reset_index(level=level, drop=drop, inplace=inplace, col_level=col_level, col_fill=col_fill)
-        return DataFrame(indexed_df) if indexed_df else None
+        return DataFrame.from_cudf_datafame(indexed_df) if indexed_df else None
 
 
 def concat(
@@ -857,7 +869,7 @@ def concat(
     # perform local concatenation, no need to distributed concat
     dfs = [obj._df for obj in dfs]
     concated_df = cudf.concat(dfs, axis=axis, join=join, ignore_index=ignore_index, sort=sort)
-    return DataFrame(concated_df)
+    return DataFrame.from_cudf_datafame(concated_df)
 
 
 def shuffle(df: cudf.DataFrame, hash_columns, env: CylonEnv = None) -> cudf.DataFrame:
