@@ -544,7 +544,7 @@ class DataFrame(object):
         shuffled_df = shuffle(self._cdf, shuffle_column_indices, env)
 
         dropped_df = shuffled_df.drop_duplicates(subset=subset, keep=keep, inplace=inplace, ignore_index=ignore_index)
-        return DataFrame.from_cudf_datafame(dropped_df) if dropped_df else DataFrame.from_cudf_datafame(shuffled_df)
+        return DataFrame.from_cudf_datafame(shuffled_df) if inplace else DataFrame.from_cudf_datafame(dropped_df)
 
     def set_index(
             self,
