@@ -705,6 +705,74 @@ class DataFrame(object):
         indexed_df = self._cdf.reset_index(level=level, drop=drop, inplace=inplace, col_level=col_level, col_fill=col_fill)
         return DataFrame.from_cudf_datafame(indexed_df) if indexed_df else None
 
+    def _columns_ok_for_set_ops(self, other):
+        """
+        Check whether:
+            other is not None
+            other is an instance of DataFrame
+            number of columns in both dataframes are the same
+            column names in both dataframe are the same (column orders can be different)
+            column data types are the same
+        """
+        if other is None:
+            raise ValueError("other can not be null")
+        if not isinstance(other, DataFrame):
+            raise ValueError("other must be an instance of DataFrame")
+        if len(self._cdf.columns) != len(other._cdf.columns):
+            raise ValueError("self and other must have the same number of columns")
+
+        # make sure both dataframes have the same column names, columns may be in different order
+        same_named_columns = [name for name in self._cdf.columns if name in other._cdf.columns]
+        if not (len(same_named_columns) == len(self._cdf.columns) == len(other._cdf.columns)):
+            raise ValueError("self and other must have columns with the same names")
+
+        # make sure both dataframes have the same data types for columns, columns may be in different order
+        for name in self._cdf.columns:
+            if self._cdf.__getattr__(name).dtype != other._cdf.__getattr__(name).dtype:
+                raise ValueError("column data types are not the same in self and the other dataframe for: ", name)
+
+    @staticmethod
+    def _set_diff(df1: cudf.DataFrame, df2: cudf.DataFrame) -> Union[DataFrame or None]:
+        """
+        Calculate set difference of two local DataFrames
+        First calculate a bool mask for the first column. True is both are equal, False otherwise
+        Calculate similar bool masks for all columns, and all
+        apply the negative of the resulting bool mask to the dataframe
+        that gives the difference
+        """
+        cname = df1.columns[0]
+        bool_list = df1.__getattr__(cname).isin(df2.__getattr__(cname))
+        for cname in df1.columns[1:]:
+            bool_list &= df1.__getattr__(cname).isin(df2.__getattr__(cname))
+
+        diff_df = df1[bool_list == False]
+
+        return DataFrame.from_cudf_datafame(diff_df)
+
+    def set_difference(self, other, env: CylonEnv = None):
+        """
+        set difference operation on two DataFrames
+        """
+
+        self._columns_ok_for_set_ops(other=other)
+
+        df1 = self._cdf
+        df2 = other._cdf
+
+        # perform local set difference
+        if env is None or env.world_size == 1 or not env.is_distributed:
+            return DataFrame._set_diff(df1=df1, df2=df2)
+
+        # hash columns for the first dataframe is just the column indices plus number of index columns
+        df1_hash_columns = [*range(df1._num_indices, df1._num_indices + df1._num_columns)]
+        # hash columns for the second dataframe must be parallel to the first one in terms of the column names
+        df2_hash_columns = [df2.columns.to_list().index(cname) + df2._num_indices for cname in df1.columns]
+
+        shuffled_df1 = shuffle(df1, df1_hash_columns, env)
+        shuffled_df2 = shuffle(df2, df2_hash_columns, env)
+
+        return DataFrame._set_diff(df1=shuffled_df1, df2=shuffled_df2)
+
 
 def concat(
         dfs,
