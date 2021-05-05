@@ -11,6 +11,21 @@ def drop_cuplicates():
     env.finalize()
 
 
+def local_concat():
+    df1 = gc.DataFrame({
+        'name': ["John", "Smith"],
+        'age': [44, 55],
+    })
+    df2 = gc.DataFrame({
+        'age': [44, 66],
+        'name': ["John", "Joseph"],
+    })
+    print("df1: \n", df1)
+    print("df2: \n", df2)
+    df3 = gc.concat(df1, df2)
+    print("locally set difference: \n", df3)
+
+
 def dist_concat():
     env: gc.CylonEnv = gc.CylonEnv(config=gc.MPIConfig(), distributed=True)
     print("CylonEnv Initialized: My rank: ", env.rank)

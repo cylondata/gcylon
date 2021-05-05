@@ -813,6 +813,65 @@ class DataFrame(object):
 
         return DataFrame._set_diff(df1=shuffled_df1, df2=shuffled_df2)
 
+    def set_union(self,
+                  other,
+                  keep_duplicates: bool = False,
+                  ignore_index: bool = False,
+                  env: CylonEnv = None) -> DataFrame:
+        """
+        set union operation on two DataFrames
+
+        Parameters
+        ----------
+        other: second DataFrame to calculate the set union
+
+        Returns
+        -------
+        A new DataFrame object constructed by applying set union operation
+
+        Examples
+        --------
+        >>> import pygcylon as gc
+        >>> df1 = gc.DataFrame({
+        ...         'name': ["John", "Smith"],
+        ...         'age': [44, 55],
+        ... })
+
+        >>> df1
+        name  age
+        0   John   44
+        1  Smith   55
+        >>> df2 = gc.DataFrame({
+        ...         'age': [44, 66],
+        ...         'name': ["John", "Joseph"],
+        ... })
+        >>> df2
+           age    name
+        0   44    John
+        1   66  Joseph
+        >>> df1.set_union(df2)
+             name  age
+        0    John   44
+        1  Joseph   66
+        1   Smith   55
+        >>> df1.set_union(df2, keep_duplicates=True, ignore_index=True)
+             name  age
+        0    John   44
+        1   Smith   55
+        2    John   44
+        3  Joseph   66
+
+        Works with distributed datafarames similarly
+        """
+
+        self._columns_ok_for_set_ops(other=other)
+
+        concated = concat([self, other], ignore_index=ignore_index)
+        return concated if keep_duplicates else concated.drop_duplicates(ignore_index=ignore_index, env=env)
+
+    def set_intersect(self, other, env: CylonEnv = None) -> DataFrame:
+        pass
+
 
 def concat(
         dfs,
@@ -824,8 +883,7 @@ def concat(
         names=None,
         verify_integrity: bool = False,
         sort: bool = False,
-        copy: bool = True,
-        env: CylonEnv = None
+        copy: bool = True
 ) -> DataFrame:
     """Concatenate DataFrames row-wise.
 

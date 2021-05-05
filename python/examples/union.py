@@ -1,6 +1,6 @@
 import pygcylon as gc
 
-def local_diff():
+def local_union():
     df1 = gc.DataFrame({
         'name': ["John", "Smith"],
         'age': [44, 55],
@@ -11,11 +11,13 @@ def local_diff():
     })
     print("df1: \n", df1)
     print("df2: \n", df2)
-    df3 = df1.set_difference(df2)
-    print("locally set difference: \n", df3)
+    df3 = df1.set_union(df2)
+    print("set union: \n", df3)
+    df3 = df1.set_union(df2, keep_duplicates=True)
+    print("set union with duplicates: \n", df3)
 
 
-def dist_diff():
+def dist_union():
     env: gc.CylonEnv = gc.CylonEnv(config=gc.MPIConfig(), distributed=True)
     print("CylonEnv Initialized: My rank: ", env.rank)
 
@@ -29,14 +31,15 @@ def dist_diff():
     })
     print(df1)
     print(df2)
-    df3 = df1.set_difference(other=df2, env=env)
-    print("distributed diffed df:\n", df3)
+    df3 = df1.set_union(other=df2, env=env)
+    print("distributed set union:\n", df3)
+
+    df3 = df1.set_union(other=df2, keep_duplicates=True, ignore_index=True, env=env)
+    print("distributed set union with duplicates:\n", df3)
     env.finalize()
 
 
 #####################################################
-# local diff test
-# local_diff()
+# local_union()
 
-# distributed diff
-dist_diff()
+dist_union()
