@@ -68,38 +68,50 @@ class DataFrame(object):
             Data type to force. Only a single dtype is allowed.
             If None, infer.
         """
-        self._df = cudf.DataFrame(data=data, index=index, columns=columns, dtype=dtype)
+        self._cdf = cudf.DataFrame(data=data, index=index, columns=columns, dtype=dtype)
 
     def __repr__(self):
-        return self._df.__repr__()
+        return self._cdf.__repr__()
 
     def __str__(self):
-        return self._df.__str__()
+        return self._cdf.__str__()
 
     def __setitem__(self, key, value):
-        self._df.__setitem__(arg=key, value=value)
+        self._cdf.__setitem__(arg=key, value=value)
 
     def __getitem__(self, arg):
-        return self._df.__getitem__(arg=arg)
+        return self._cdf.__getitem__(arg=arg)
 
     def __setattr__(self, key, col):
-        self._df.__setattr__(key=key, col=col)
+        if key == "_cdf":
+            super().__setattr__(key, col) if isinstance(col, cudf.DataFrame) \
+                else ValueError("_cdf has to be an instance of cudf.DataFrame")
+        elif self._cdf:
+            self._cdf.__setattr__(key=key, col=col)
+        else:
+            raise ValueError("Invalid attribute setting attempt")
 
     def __getattr__(self, key):
-        return self._df.__getattr__(key=key)
+        return self._cdf if key == "_cdf" else self._cdf.__getattr__(key=key)
 
     def __delitem__(self, name):
-        self._df.__delitem__(name=name)
+        self._cdf.__delitem__(name=name)
 
     def __dir__(self):
-        return self._df.__dir__()
+        return self._cdf.__dir__()
 
     def __sizeof__(self):
-        return self._df.__sizeof__()
+        return self._cdf.__sizeof__()
 
-    @property
-    def df(self) -> cudf.DataFrame:
-        return self._df
+    @staticmethod
+    def from_cudf_datafame(cdf) -> DataFrame:
+        if (cdf is not None) and isinstance(cdf, cudf.DataFrame):
+            df = DataFrame()
+            df._cdf = cdf
+            return df
+        else:
+            raise ValueError('A cudf.DataFrame object must be provided.')
+
 
     def join(self,
              other,
@@ -139,21 +151,21 @@ class DataFrame(object):
             raise ValueError('on is not supported with join method. Please use merge method.')
 
         if env is None:
-            joined_df = self._df.join(other=other._df,
-                                      on=on,
-                                      how=how,
-                                      lsuffix=lsuffix,
-                                      rsuffix=rsuffix,
-                                      sort=sort,
-                                      method=algorithm)
-            return DataFrame(joined_df)
+            joined_df = self._cdf.join(other=other._cdf,
+                                       on=on,
+                                       how=how,
+                                       lsuffix=lsuffix,
+                                       rsuffix=rsuffix,
+                                       sort=sort,
+                                       method=algorithm)
+            return DataFrame.from_cudf_datafame(joined_df)
 
         # shuffle dataframes on index columns
-        hash_columns = [*range(self._df._num_indices)]
-        shuffled_left = shuffle(self._df, hash_columns, env)
+        hash_columns = [*range(self._cdf._num_indices)]
+        shuffled_left = shuffle(self._cdf, hash_columns, env)
 
-        hash_columns = [*range(other._df._num_indices)]
-        shuffled_right = shuffle(other._df, hash_columns, env)
+        hash_columns = [*range(other._cdf._num_indices)]
+        shuffled_right = shuffle(other._cdf, hash_columns, env)
 
         joined_df = shuffled_left.join(shuffled_right,
                                        on=on,
@@ -162,7 +174,7 @@ class DataFrame(object):
                                        rsuffix=rsuffix,
                                        sort=sort,
                                        method=algorithm)
-        return DataFrame(joined_df)
+        return DataFrame.from_cudf_datafame(joined_df)
 
     def merge(self,
               right,
@@ -220,7 +232,7 @@ class DataFrame(object):
         suffixes: Tuple[str, str], defaults to ('_x', '_y')
             Suffixes applied to overlapping column names on the left and right
             sides
-        method : {‘hash’, ‘sort’}, default ‘hash’
+        algorithm: {‘hash’, ‘sort’}, default ‘hash’
             The implementation method to be used for the operation.
 
         Returns
@@ -276,23 +288,23 @@ class DataFrame(object):
             )
 
         if env is None:
-            merged_df = self._df.merge(right=right._df,
-                                       on=on,
-                                       left_on=left_on,
-                                       right_on=right_on,
-                                       left_index=left_index,
-                                       right_index=right_index,
-                                       how=how,
-                                       sort=sort,
-                                       suffixes=suffixes,
-                                       method=algorithm)
-            return DataFrame(merged_df)
+            merged_df = self._cdf.merge(right=right._cdf,
+                                        on=on,
+                                        left_on=left_on,
+                                        right_on=right_on,
+                                        left_index=left_index,
+                                        right_index=right_index,
+                                        how=how,
+                                        sort=sort,
+                                        suffixes=suffixes,
+                                        method=algorithm)
+            return DataFrame.from_cudf_datafame(merged_df)
 
         from cudf.core.join import Merge
         # just for checking purposes, we assign "left" to how if it is "right"
         howToCheck = "left" if how == "right" else how
-        Merge.validate_merge_cfg(lhs=self._df,
-                                 rhs=right._df,
+        Merge.validate_merge_cfg(lhs=self._cdf,
+                                 rhs=right._cdf,
                                  on=on,
                                  left_on=left_on,
                                  right_on=right_on,
@@ -303,22 +315,22 @@ class DataFrame(object):
                                  rsuffix=suffixes[1],
                                  suffixes=suffixes)
 
-        left_on1, right_on1 = self._get_left_right_on(self._df,
-                                                      right._df,
+        left_on1, right_on1 = self._get_left_right_on(self._cdf,
+                                                      right._cdf,
                                                       on,
                                                       left_on,
                                                       right_on,
                                                       left_index,
                                                       right_index)
-        left_on_ind, right_on_ind = DataFrame._get_left_right_indices(self._df,
-                                                                      right._df,
+        left_on_ind, right_on_ind = DataFrame._get_left_right_indices(self._cdf,
+                                                                      right._cdf,
                                                                       left_on1,
                                                                       right_on1,
                                                                       left_index,
                                                                       right_index)
 
-        shuffled_left = shuffle(self._df, left_on_ind, env)
-        shuffled_right = shuffle(right._df, right_on_ind, env)
+        shuffled_left = shuffle(self._cdf, left_on_ind, env)
+        shuffled_right = shuffle(right._cdf, right_on_ind, env)
 
         merged_df = shuffled_left.merge(right=shuffled_right,
                                         on=on,
@@ -330,7 +342,7 @@ class DataFrame(object):
                                         sort=sort,
                                         suffixes=suffixes,
                                         method=algorithm)
-        return DataFrame(merged_df)
+        return DataFrame.from_cudf_datafame(merged_df)
 
     @staticmethod
     def _get_left_right_on(lhs, rhs, on, left_on, right_on, left_index, right_index):
@@ -435,7 +447,7 @@ class DataFrame(object):
         """
         all_df_indices = [];
         for cdf in dfs:
-            df_indices = [*range(cdf._df._num_indices, cdf._df._num_indices + cdf._df._num_columns)]
+            df_indices = [*range(cdf._cdf._num_indices, cdf._cdf._num_indices + cdf._cdf._num_columns)]
             all_df_indices.append(df_indices)
         return all_df_indices
 
@@ -458,7 +470,7 @@ class DataFrame(object):
         all_df_indices = [];
         for cdf in dfs:
             df_indices = []
-            col_names = list(cdf._df._index_names) + list(cdf._df._column_names)
+            col_names = list(cdf._cdf._index_names) + list(cdf._cdf._column_names)
             for name in common_columns_names:
                 df_indices.append(col_names.index(name))
             all_df_indices.append(df_indices)
@@ -471,7 +483,7 @@ class DataFrame(object):
         :param dfs: list of DataFrame objects
         :return: list of column names that are common to all DataFrames
         """
-        column_name_lists = [list(obj._df._column_names) for obj in dfs]
+        column_name_lists = [list(obj._cdf._column_names) for obj in dfs]
         common_column_names = set(column_name_lists[0])
         for column_names in column_name_lists[1:]:
             common_column_names = common_column_names & set(column_names)
@@ -515,24 +527,24 @@ class DataFrame(object):
         """
 
         if env is None or env.world_size == 1:
-            dropped_df = self._df.drop_duplicates(subset=subset, keep=keep, inplace=inplace, ignore_index=ignore_index)
-            return DataFrame(dropped_df) if not inplace else None
+            dropped_df = self._cdf.drop_duplicates(subset=subset, keep=keep, inplace=inplace, ignore_index=ignore_index)
+            return DataFrame.from_cudf_datafame(dropped_df) if not inplace else None
 
         shuffle_column_indices = []
         if subset is None:
             shuffle_column_indices = self._get_column_indices()
         elif isinstance(subset, str):
-            shuffle_column_indices.append(self._df._num_indices + self._df._column_names.index(subset))
+            shuffle_column_indices.append(self._cdf._num_indices + self._cdf._column_names.index(subset))
         elif len(subset) == 0:
             raise ValueError("subset is empty. it should be either None or sequence of column names")
         else:
             for name in subset:
-                shuffle_column_indices.append(self._df._num_indices + self._df._column_names.index(name))
+                shuffle_column_indices.append(self._cdf._num_indices + self._cdf._column_names.index(name))
 
-        shuffled_df = shuffle(self._df, shuffle_column_indices, env)
+        shuffled_df = shuffle(self._cdf, shuffle_column_indices, env)
 
         dropped_df = shuffled_df.drop_duplicates(subset=subset, keep=keep, inplace=inplace, ignore_index=ignore_index)
-        return DataFrame(dropped_df) if dropped_df else DataFrame(shuffled_df)
+        return DataFrame.from_cudf_datafame(shuffled_df) if inplace else DataFrame.from_cudf_datafame(dropped_df)
 
     def set_index(
             self,
@@ -638,9 +650,9 @@ class DataFrame(object):
         5  e  5.0
         """
 
-        indexed_df = self.df.set_index(keys=keys, drop=drop, append=append, inplace=inplace,
-                                       verify_integrity=verify_integrity)
-        return DataFrame(indexed_df) if indexed_df else None
+        indexed_df = self._cdf.set_index(keys=keys, drop=drop, append=append, inplace=inplace,
+                                         verify_integrity=verify_integrity)
+        return DataFrame.from_cudf_datafame(indexed_df) if indexed_df else None
 
     def reset_index(
             self, level=None, drop=False, inplace=False, col_level=0, col_fill=""
@@ -690,9 +702,256 @@ class DataFrame(object):
         2  mammal      80.5
         3  mammal      <NA>
         """
-        indexed_df = self._df.reset_index(level=level, drop=drop, inplace=inplace, col_level=col_level, col_fill=col_fill)
-        return DataFrame(indexed_df) if indexed_df else None
+        indexed_df = self._cdf.reset_index(level=level, drop=drop, inplace=inplace, col_level=col_level, col_fill=col_fill)
+        return DataFrame.from_cudf_datafame(indexed_df) if indexed_df else None
 
+    def _columns_ok_for_set_ops(self,
+                                other: DataFrame,
+                                subset: List[str] = None):
+        """
+        Check whether:
+            other is not None
+            other is an instance of DataFrame
+            number of columns in both dataframes are the same
+            column names in both dataframe are the same (column orders can be different)
+            column data types are the same
+        """
+        if other is None:
+            raise ValueError("other can not be null")
+        if not isinstance(other, DataFrame):
+            raise ValueError("other must be an instance of DataFrame")
+
+        subset = self._cdf.columns.to_list() if subset is None else subset
+
+        for cname in subset:
+            if cname not in self._cdf.columns:
+                raise ValueError("self does not have a column named: ", cname)
+            if cname not in other._cdf.columns:
+                raise ValueError("other does not have a column named: ", cname)
+            # make sure both dataframes have the same data types,
+            # columns may be in different order
+            if self._cdf.__getattr__(cname).dtype != other._cdf.__getattr__(cname).dtype:
+                raise ValueError("column data types are not the same in self and the other dataframe for: ", cname)
+
+
+    @staticmethod
+    def _set_diff(df1: cudf.DataFrame,
+                  df2: cudf.DataFrame,
+                  subset: List[str] = None) -> DataFrame:
+        """
+        Calculate set difference of two local DataFrames
+        First calculate a bool mask for the first column. True is both are equal, False otherwise
+        Calculate similar bool masks for all columns, and all
+        apply the negative of the resulting bool mask to the dataframe
+        that gives the difference
+        """
+        subset = df1.columns.to_list() if subset is None else subset
+
+        cname = subset[0]
+        bool_mask = df1.__getattr__(cname).isin(df2.__getattr__(cname))
+        for cname in subset[1:]:
+            bool_mask &= df1.__getattr__(cname).isin(df2.__getattr__(cname))
+
+        diff_df = df1[bool_mask == False]
+
+        return DataFrame.from_cudf_datafame(diff_df)
+
+    def set_difference(self,
+                       other: DataFrame,
+                       subset: Optional[Union[Hashable, Sequence[Hashable]]] = None,
+                       env: CylonEnv = None) -> DataFrame:
+        """
+        set difference operation on two DataFrames
+
+        Parameters
+        ----------
+        other: second DataFrame to calculate the set difference
+        subset: subset of column names to perform the difference,
+                if None, use all columns except the index column
+
+        Returns
+        -------
+        A new DataFrame object constructed by applying set difference operation
+
+        Examples
+        --------
+        >>> import pygcylon as gc
+        >>> df1 = gc.DataFrame({
+        ...         'name': ["John", "Smith"],
+        ...         'age': [44, 55],
+        ... })
+
+        >>> df1
+        name  age
+        0   John   44
+        1  Smith   55
+        >>> df2 = gc.DataFrame({
+        ...         'age': [44, 66],
+        ...         'name': ["John", "Joseph"],
+        ... })
+        >>> df2
+           age    name
+        0   44    John
+        1   66  Joseph
+        >>> df1.set_difference(df2)
+            name  age
+        1  Smith   55
+        >>> df2.set_difference(df1)
+           age    name
+        1   66  Joseph
+        >>> df1.set_difference(df1)
+        Empty DataFrame
+        Columns: [name, age]
+        Index: []
+
+        Works with distributed datafarames similarly
+        """
+
+        subset = self._cdf.columns.to_list() if subset is None else subset
+        self._columns_ok_for_set_ops(other=other, subset=subset)
+
+        df1 = self._cdf
+        df2 = other._cdf
+
+        # perform local set difference
+        if env is None or env.world_size == 1 or not env.is_distributed:
+            return DataFrame._set_diff(df1=df1, df2=df2, subset=subset)
+
+        # column indices for performing distributed shuffle
+        df1_hash_columns = [df1._num_indices + df1.columns.to_list().index(cname) for cname in subset]
+        df2_hash_columns = [df2._num_indices + df2.columns.to_list().index(cname) for cname in subset]
+
+        shuffled_df1 = shuffle(df1, df1_hash_columns, env)
+        shuffled_df2 = shuffle(df2, df2_hash_columns, env)
+
+        return DataFrame._set_diff(df1=shuffled_df1, df2=shuffled_df2, subset=subset)
+
+    def set_union(self,
+                  other: DataFrame,
+                  subset: Optional[Union[Hashable, Sequence[Hashable]]] = None,
+                  keep_duplicates: bool = False,
+                  ignore_index: bool = False,
+                  env: CylonEnv = None) -> DataFrame:
+        """
+        set union operation on two DataFrames
+
+        Parameters
+        ----------
+        other: second DataFrame to calculate the set union
+        subset: subset of column names to perform union,
+                if None, use all columns except the index column
+                used to remove duplicates on the gıven subset of columns
+                if keep_duplicates is True, it has no effect
+        keep_duplicates: keep the duplicates in the union.
+                if True, union is equivalent to concat
+        ignore_index: if True, remove old index values and reindex with default index the resulting DataFrame
+        env: required for distributed union operation
+            has no effect on local operation
+
+        Returns
+        -------
+        A new DataFrame object constructed by applying set union operation
+
+        Examples
+        --------
+        >>> import pygcylon as gc
+        >>> df1 = gc.DataFrame({
+        ...         'name': ["John", "Smith"],
+        ...         'age': [44, 55],
+        ... })
+
+        >>> df1
+        name  age
+        0   John   44
+        1  Smith   55
+        >>> df2 = gc.DataFrame({
+        ...         'age': [44, 66],
+        ...         'name': ["John", "Joseph"],
+        ... })
+        >>> df2
+           age    name
+        0   44    John
+        1   66  Joseph
+        >>> df1.set_union(df2)
+             name  age
+        0    John   44
+        1  Joseph   66
+        1   Smith   55
+        >>> df1.set_union(df2, keep_duplicates=True, ignore_index=True)
+             name  age
+        0    John   44
+        1   Smith   55
+        2    John   44
+        3  Joseph   66
+
+        Works with distributed datafarames similarly
+        """
+
+        subset = self._cdf.columns.to_list() if subset is None else subset
+        self._columns_ok_for_set_ops(other=other, subset=subset)
+
+        concated = concat([self, other], ignore_index=ignore_index)
+        return concated if keep_duplicates else concated.drop_duplicates(subset=subset, ignore_index=ignore_index, env=env)
+
+    def set_intersect(self,
+                      other: DataFrame,
+                      subset: Optional[Union[Hashable, Sequence[Hashable]]] = None,
+                      env: CylonEnv = None) -> DataFrame:
+        """
+        set intersection operation on two DataFrames
+
+        Parameters
+        ----------
+        other: second DataFrame to calculate the set intersection
+        subset: subset of column names to perform intersection,
+                if None, use all columns except the index column
+
+        Returns
+        -------
+        A new DataFrame object constructed by applying set intersection operation
+
+        Examples
+        --------
+        >>> import pygcylon as gc
+        >>> df1 = gc.DataFrame({
+        ...         'name': ["John", "Smith"],
+        ...         'age': [44, 55],
+        ... })
+
+        >>> df1
+        name  age
+        0   John   44
+        1  Smith   55
+        >>> df2 = gc.DataFrame({
+        ...         'age': [44, 66],
+        ...         'name': ["John", "Joseph"],
+        ... })
+        >>> df2
+           age    name
+        0   44    John
+        1   66  Joseph
+        >>> df1.set_intersect(df2)
+           name  age
+        0  John   44
+        >>> df1.set_intersect(df2, subset=["age"])
+          name_x  age name_y
+        0   John   44   John
+
+        Works with distributed datafarames similarly
+        """
+
+        subset = self._cdf.columns.to_list() if subset is None else subset
+
+        self._columns_ok_for_set_ops(other=other, subset=subset)
+
+        return self.merge(right=other,
+                          how="inner",
+                          algorithm="hash",
+                          on=subset,
+                          left_index=False,
+                          right_index=False,
+                          sort=False,
+                          env=env)
 
 def concat(
         dfs,
@@ -704,8 +963,7 @@ def concat(
         names=None,
         verify_integrity: bool = False,
         sort: bool = False,
-        copy: bool = True,
-        env: CylonEnv = None
+        copy: bool = True
 ) -> DataFrame:
     """Concatenate DataFrames row-wise.
 
@@ -855,9 +1113,9 @@ def concat(
             raise ValueError("Only DataFrame objects can be concatenated")
 
     # perform local concatenation, no need to distributed concat
-    dfs = [obj._df for obj in dfs]
+    dfs = [obj._cdf for obj in dfs]
     concated_df = cudf.concat(dfs, axis=axis, join=join, ignore_index=ignore_index, sort=sort)
-    return DataFrame(concated_df)
+    return DataFrame.from_cudf_datafame(concated_df)
 
 
 def shuffle(df: cudf.DataFrame, hash_columns, env: CylonEnv = None) -> cudf.DataFrame:
