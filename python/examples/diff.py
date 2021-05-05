@@ -12,7 +12,13 @@ def local_diff():
     print("df1: \n", df1)
     print("df2: \n", df2)
     df3 = df1.set_difference(df2)
-    print("locally set difference: \n", df3)
+    print("df1 set difference df2: \n", df3)
+    df3 = df2.set_difference(df1)
+    print("df2 set difference df1: \n", df3)
+    df3 = df1.set_difference(df2, subset=["name"])
+    print("df1 set difference df2 on subset=['name']: \n", df3)
+    df3 = df2.set_difference(df1, subset=["name"])
+    print("df2 set difference df1 on subset=['name']: \n", df3)
 
 
 def dist_diff():
@@ -27,10 +33,16 @@ def dist_diff():
         'age': [44, 66],
         'weight': [60 + env.rank, 80 + env.rank],
     })
-    print(df1)
-    print(df2)
+    print("df1: \n", df1)
+    print("df2: \n", df2)
     df3 = df1.set_difference(other=df2, env=env)
-    print("distributed diffed df:\n", df3)
+    print("df1 distributed set difference df2:\n", df3)
+    df3 = df2.set_difference(other=df1, env=env)
+    print("df2 distributed set difference df1:\n", df3)
+    df3 = df1.set_difference(df2, subset=["age"], env=env)
+    print("df1 distributed set difference df2 on subset=['age']: \n", df3)
+    df3 = df2.set_difference(df1, subset=["age"], env=env)
+    print("df2 distributed set difference df1 on subset=['age']: \n", df3)
     env.finalize()
 
 

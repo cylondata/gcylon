@@ -705,7 +705,9 @@ class DataFrame(object):
         indexed_df = self._cdf.reset_index(level=level, drop=drop, inplace=inplace, col_level=col_level, col_fill=col_fill)
         return DataFrame.from_cudf_datafame(indexed_df) if indexed_df else None
 
-    def _columns_ok_for_set_ops(self, other):
+    def _columns_ok_for_set_ops(self,
+                                other: DataFrame,
+                                subset: List[str] = None):
         """
         Check whether:
             other is not None
@@ -718,21 +720,24 @@ class DataFrame(object):
             raise ValueError("other can not be null")
         if not isinstance(other, DataFrame):
             raise ValueError("other must be an instance of DataFrame")
-        if len(self._cdf.columns) != len(other._cdf.columns):
-            raise ValueError("self and other must have the same number of columns")
 
-        # make sure both dataframes have the same column names, columns may be in different order
-        same_named_columns = [name for name in self._cdf.columns if name in other._cdf.columns]
-        if not (len(same_named_columns) == len(self._cdf.columns) == len(other._cdf.columns)):
-            raise ValueError("self and other must have columns with the same names")
+        subset = self._cdf.columns.to_list() if subset is None else subset
 
-        # make sure both dataframes have the same data types for columns, columns may be in different order
-        for name in self._cdf.columns:
-            if self._cdf.__getattr__(name).dtype != other._cdf.__getattr__(name).dtype:
-                raise ValueError("column data types are not the same in self and the other dataframe for: ", name)
+        for cname in subset:
+            if cname not in self._cdf.columns:
+                raise ValueError("self does not have a column named: ", cname)
+            if cname not in other._cdf.columns:
+                raise ValueError("other does not have a column named: ", cname)
+            # make sure both dataframes have the same data types,
+            # columns may be in different order
+            if self._cdf.__getattr__(cname).dtype != other._cdf.__getattr__(cname).dtype:
+                raise ValueError("column data types are not the same in self and the other dataframe for: ", cname)
+
 
     @staticmethod
-    def _set_diff(df1: cudf.DataFrame, df2: cudf.DataFrame) -> DataFrame:
+    def _set_diff(df1: cudf.DataFrame,
+                  df2: cudf.DataFrame,
+                  subset: List[str] = None) -> DataFrame:
         """
         Calculate set difference of two local DataFrames
         First calculate a bool mask for the first column. True is both are equal, False otherwise
@@ -740,21 +745,29 @@ class DataFrame(object):
         apply the negative of the resulting bool mask to the dataframe
         that gives the difference
         """
-        cname = df1.columns[0]
+        subset = df1.columns.to_list() if subset is None else subset
+
+        cname = subset[0]
         bool_mask = df1.__getattr__(cname).isin(df2.__getattr__(cname))
-        for cname in df1.columns[1:]:
+        for cname in subset[1:]:
             bool_mask &= df1.__getattr__(cname).isin(df2.__getattr__(cname))
 
         diff_df = df1[bool_mask == False]
 
         return DataFrame.from_cudf_datafame(diff_df)
 
-    def set_difference(self, other: DataFrame, env: CylonEnv = None) -> DataFrame:
+    def set_difference(self,
+                       other: DataFrame,
+                       subset: Optional[Union[Hashable, Sequence[Hashable]]] = None,
+                       env: CylonEnv = None) -> DataFrame:
         """
         set difference operation on two DataFrames
+
         Parameters
         ----------
         other: second DataFrame to calculate the set difference
+        subset: subset of column names to perform the difference,
+                if None, use all columns except the index column
 
         Returns
         -------
@@ -794,27 +807,28 @@ class DataFrame(object):
         Works with distributed datafarames similarly
         """
 
-        self._columns_ok_for_set_ops(other=other)
+        subset = self._cdf.columns.to_list() if subset is None else subset
+        self._columns_ok_for_set_ops(other=other, subset=subset)
 
         df1 = self._cdf
         df2 = other._cdf
 
         # perform local set difference
         if env is None or env.world_size == 1 or not env.is_distributed:
-            return DataFrame._set_diff(df1=df1, df2=df2)
+            return DataFrame._set_diff(df1=df1, df2=df2, subset=subset)
 
-        # hash columns for the first dataframe is just the column indices plus number of index columns
-        df1_hash_columns = [*range(df1._num_indices, df1._num_indices + df1._num_columns)]
-        # hash columns for the second dataframe must be parallel to the first one in terms of the column names
-        df2_hash_columns = [df2.columns.to_list().index(cname) + df2._num_indices for cname in df1.columns]
+        # column indices for performing distributed shuffle
+        df1_hash_columns = [df1._num_indices + df1.columns.to_list().index(cname) for cname in subset]
+        df2_hash_columns = [df2._num_indices + df2.columns.to_list().index(cname) for cname in subset]
 
         shuffled_df1 = shuffle(df1, df1_hash_columns, env)
         shuffled_df2 = shuffle(df2, df2_hash_columns, env)
 
-        return DataFrame._set_diff(df1=shuffled_df1, df2=shuffled_df2)
+        return DataFrame._set_diff(df1=shuffled_df1, df2=shuffled_df2, subset=subset)
 
     def set_union(self,
                   other: DataFrame,
+                  subset: Optional[Union[Hashable, Sequence[Hashable]]] = None,
                   keep_duplicates: bool = False,
                   ignore_index: bool = False,
                   env: CylonEnv = None) -> DataFrame:
@@ -824,6 +838,15 @@ class DataFrame(object):
         Parameters
         ----------
         other: second DataFrame to calculate the set union
+        subset: subset of column names to perform union,
+                if None, use all columns except the index column
+                used to remove duplicates on the gıven subset of columns
+                if keep_duplicates is True, it has no effect
+        keep_duplicates: keep the duplicates in the union.
+                if True, union is equivalent to concat
+        ignore_index: if True, remove old index values and reindex with default index the resulting DataFrame
+        env: required for distributed union operation
+            has no effect on local operation
 
         Returns
         -------
@@ -864,10 +887,11 @@ class DataFrame(object):
         Works with distributed datafarames similarly
         """
 
-        self._columns_ok_for_set_ops(other=other)
+        subset = self._cdf.columns.to_list() if subset is None else subset
+        self._columns_ok_for_set_ops(other=other, subset=subset)
 
         concated = concat([self, other], ignore_index=ignore_index)
-        return concated if keep_duplicates else concated.drop_duplicates(ignore_index=ignore_index, env=env)
+        return concated if keep_duplicates else concated.drop_duplicates(subset=subset, ignore_index=ignore_index, env=env)
 
     def set_intersect(self,
                       other: DataFrame,
@@ -918,7 +942,7 @@ class DataFrame(object):
 
         subset = self._cdf.columns.to_list() if subset is None else subset
 
-        self._columns_ok_for_set_ops(other=other)
+        self._columns_ok_for_set_ops(other=other, subset=subset)
 
         return self.merge(right=other,
                           how="inner",
