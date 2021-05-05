@@ -2,12 +2,12 @@ import pygcylon as gc
 
 def local_diff():
     df1 = gc.DataFrame({
-        'name': ["John", "Smith", "Jacob"],
-        'age': [44, 55, 77],
+        'name': ["John", "Smith"],
+        'age': [44, 55],
     })
     df2 = gc.DataFrame({
-        'age': [44, 66, 77],
-        'name': ["John", "Joseph", "Jack"],
+        'age': [44, 66],
+        'name': ["John", "Joseph"],
     })
     print("df1: \n", df1)
     print("df2: \n", df2)
@@ -29,14 +29,14 @@ def dist_diff():
     })
     print(df1)
     print(df2)
-    df3 = df2.set_difference(other=df1, env=env)
+    df3 = df1.set_difference(other=df2, env=env)
     print("distributed diffed df:\n", df3)
     env.finalize()
 
 
 #####################################################
-# local join test
+# local diff test
 # local_diff()
 
-# distributed join
+# distributed diff
 dist_diff()

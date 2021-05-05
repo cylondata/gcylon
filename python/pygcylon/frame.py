@@ -732,7 +732,7 @@ class DataFrame(object):
                 raise ValueError("column data types are not the same in self and the other dataframe for: ", name)
 
     @staticmethod
-    def _set_diff(df1: cudf.DataFrame, df2: cudf.DataFrame) -> Union[DataFrame or None]:
+    def _set_diff(df1: cudf.DataFrame, df2: cudf.DataFrame) -> DataFrame:
         """
         Calculate set difference of two local DataFrames
         First calculate a bool mask for the first column. True is both are equal, False otherwise
@@ -741,17 +741,57 @@ class DataFrame(object):
         that gives the difference
         """
         cname = df1.columns[0]
-        bool_list = df1.__getattr__(cname).isin(df2.__getattr__(cname))
+        bool_mask = df1.__getattr__(cname).isin(df2.__getattr__(cname))
         for cname in df1.columns[1:]:
-            bool_list &= df1.__getattr__(cname).isin(df2.__getattr__(cname))
+            bool_mask &= df1.__getattr__(cname).isin(df2.__getattr__(cname))
 
-        diff_df = df1[bool_list == False]
+        diff_df = df1[bool_mask == False]
 
         return DataFrame.from_cudf_datafame(diff_df)
 
-    def set_difference(self, other, env: CylonEnv = None):
+    def set_difference(self, other, env: CylonEnv = None) -> DataFrame:
         """
         set difference operation on two DataFrames
+        Parameters
+        ----------
+        other: second DataFrame to calculate the set difference
+
+        Returns
+        -------
+        A new DataFrame object constructed by applying set difference operation
+
+        Examples
+        --------
+        >>> import pygcylon as gc
+        >>> df1 = gc.DataFrame({
+        ...         'name': ["John", "Smith"],
+        ...         'age': [44, 55],
+        ... })
+
+        >>> df1
+        name  age
+        0   John   44
+        1  Smith   55
+        >>> df2 = gc.DataFrame({
+        ...         'age': [44, 66],
+        ...         'name': ["John", "Joseph"],
+        ... })
+        >>> df2
+           age    name
+        0   44    John
+        1   66  Joseph
+        >>> df1.set_difference(df2)
+            name  age
+        1  Smith   55
+        >>> df2.set_difference(df1)
+           age    name
+        1   66  Joseph
+        >>> df1.set_difference(df1)
+        Empty DataFrame
+        Columns: [name, age]
+        Index: []
+
+        Works with distributed datafarames similarly
         """
 
         self._columns_ok_for_set_ops(other=other)
