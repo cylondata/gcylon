@@ -749,7 +749,7 @@ class DataFrame(object):
 
         return DataFrame.from_cudf_datafame(diff_df)
 
-    def set_difference(self, other, env: CylonEnv = None) -> DataFrame:
+    def set_difference(self, other: DataFrame, env: CylonEnv = None) -> DataFrame:
         """
         set difference operation on two DataFrames
         Parameters
@@ -814,7 +814,7 @@ class DataFrame(object):
         return DataFrame._set_diff(df1=shuffled_df1, df2=shuffled_df2)
 
     def set_union(self,
-                  other,
+                  other: DataFrame,
                   keep_duplicates: bool = False,
                   ignore_index: bool = False,
                   env: CylonEnv = None) -> DataFrame:
@@ -869,9 +869,65 @@ class DataFrame(object):
         concated = concat([self, other], ignore_index=ignore_index)
         return concated if keep_duplicates else concated.drop_duplicates(ignore_index=ignore_index, env=env)
 
-    def set_intersect(self, other, env: CylonEnv = None) -> DataFrame:
-        pass
+    def set_intersect(self,
+                      other: DataFrame,
+                      subset: Optional[Union[Hashable, Sequence[Hashable]]] = None,
+                      env: CylonEnv = None) -> DataFrame:
+        """
+        set intersection operation on two DataFrames
 
+        Parameters
+        ----------
+        other: second DataFrame to calculate the set intersection
+        subset: subset of column names to perform intersection,
+                if None, use all columns except the index column
+
+        Returns
+        -------
+        A new DataFrame object constructed by applying set intersection operation
+
+        Examples
+        --------
+        >>> import pygcylon as gc
+        >>> df1 = gc.DataFrame({
+        ...         'name': ["John", "Smith"],
+        ...         'age': [44, 55],
+        ... })
+
+        >>> df1
+        name  age
+        0   John   44
+        1  Smith   55
+        >>> df2 = gc.DataFrame({
+        ...         'age': [44, 66],
+        ...         'name': ["John", "Joseph"],
+        ... })
+        >>> df2
+           age    name
+        0   44    John
+        1   66  Joseph
+        >>> df1.set_intersect(df2)
+           name  age
+        0  John   44
+        >>> df1.set_intersect(df2, subset=["age"])
+          name_x  age name_y
+        0   John   44   John
+
+        Works with distributed datafarames similarly
+        """
+
+        subset = self._cdf.columns.to_list() if subset is None else subset
+
+        self._columns_ok_for_set_ops(other=other)
+
+        return self.merge(right=other,
+                          how="inner",
+                          algorithm="hash",
+                          on=subset,
+                          left_index=False,
+                          right_index=False,
+                          sort=False,
+                          env=env)
 
 def concat(
         dfs,
