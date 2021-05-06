@@ -113,6 +113,8 @@ class DataFrame(object):
         else:
             raise ValueError('A cudf.DataFrame object must be provided.')
 
+    def to_cudf(self) -> cudf.DataFrame:
+        return self._cdf
 
     def join(self,
              other,
