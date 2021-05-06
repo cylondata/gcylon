@@ -529,20 +529,15 @@ class DataFrame(object):
             None if ``inplace=True`` and in the local mode with no distributed workers.
         """
 
+        subset = self._convert_subset(subset=subset)
+
         if env is None or env.world_size == 1:
             dropped_df = self._cdf.drop_duplicates(subset=subset, keep=keep, inplace=inplace, ignore_index=ignore_index)
             return DataFrame.from_cudf(dropped_df) if not inplace else None
 
         shuffle_column_indices = []
-        if subset is None:
-            shuffle_column_indices = self._get_column_indices()
-        elif isinstance(subset, str):
-            shuffle_column_indices.append(self._cdf._num_indices + self._cdf._column_names.index(subset))
-        elif len(subset) == 0:
-            raise ValueError("subset is empty. it should be either None or sequence of column names")
-        else:
-            for name in subset:
-                shuffle_column_indices.append(self._cdf._num_indices + self._cdf._column_names.index(name))
+        for name in subset:
+            shuffle_column_indices.append(self._cdf._num_indices + self._cdf._column_names.index(name))
 
         shuffled_df = shuffle(self._cdf, shuffle_column_indices, env)
 
