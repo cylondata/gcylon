@@ -105,7 +105,7 @@ class DataFrame(object):
         return self._cdf.__sizeof__()
 
     @staticmethod
-    def from_cudf_datafame(cdf) -> DataFrame:
+    def from_cudf(cdf) -> DataFrame:
         if (cdf is not None) and isinstance(cdf, cudf.DataFrame):
             df = DataFrame()
             df._cdf = cdf
@@ -159,7 +159,7 @@ class DataFrame(object):
                                        rsuffix=rsuffix,
                                        sort=sort,
                                        method=algorithm)
-            return DataFrame.from_cudf_datafame(joined_df)
+            return DataFrame.from_cudf(joined_df)
 
         # shuffle dataframes on index columns
         hash_columns = [*range(self._cdf._num_indices)]
@@ -175,7 +175,7 @@ class DataFrame(object):
                                        rsuffix=rsuffix,
                                        sort=sort,
                                        method=algorithm)
-        return DataFrame.from_cudf_datafame(joined_df)
+        return DataFrame.from_cudf(joined_df)
 
     def merge(self,
               right,
@@ -299,7 +299,7 @@ class DataFrame(object):
                                         sort=sort,
                                         suffixes=suffixes,
                                         method=algorithm)
-            return DataFrame.from_cudf_datafame(merged_df)
+            return DataFrame.from_cudf(merged_df)
 
         from cudf.core.join import Merge
         # just for checking purposes, we assign "left" to how if it is "right"
@@ -343,7 +343,7 @@ class DataFrame(object):
                                         sort=sort,
                                         suffixes=suffixes,
                                         method=algorithm)
-        return DataFrame.from_cudf_datafame(merged_df)
+        return DataFrame.from_cudf(merged_df)
 
     @staticmethod
     def _get_left_right_on(lhs, rhs, on, left_on, right_on, left_index, right_index):
@@ -529,7 +529,7 @@ class DataFrame(object):
 
         if env is None or env.world_size == 1:
             dropped_df = self._cdf.drop_duplicates(subset=subset, keep=keep, inplace=inplace, ignore_index=ignore_index)
-            return DataFrame.from_cudf_datafame(dropped_df) if not inplace else None
+            return DataFrame.from_cudf(dropped_df) if not inplace else None
 
         shuffle_column_indices = []
         if subset is None:
@@ -545,7 +545,7 @@ class DataFrame(object):
         shuffled_df = shuffle(self._cdf, shuffle_column_indices, env)
 
         dropped_df = shuffled_df.drop_duplicates(subset=subset, keep=keep, inplace=inplace, ignore_index=ignore_index)
-        return DataFrame.from_cudf_datafame(shuffled_df) if inplace else DataFrame.from_cudf_datafame(dropped_df)
+        return DataFrame.from_cudf(shuffled_df) if inplace else DataFrame.from_cudf(dropped_df)
 
     def set_index(
             self,
@@ -653,7 +653,7 @@ class DataFrame(object):
 
         indexed_df = self._cdf.set_index(keys=keys, drop=drop, append=append, inplace=inplace,
                                          verify_integrity=verify_integrity)
-        return DataFrame.from_cudf_datafame(indexed_df) if indexed_df else None
+        return DataFrame.from_cudf(indexed_df) if indexed_df else None
 
     def reset_index(
             self, level=None, drop=False, inplace=False, col_level=0, col_fill=""
@@ -704,7 +704,7 @@ class DataFrame(object):
         3  mammal      <NA>
         """
         indexed_df = self._cdf.reset_index(level=level, drop=drop, inplace=inplace, col_level=col_level, col_fill=col_fill)
-        return DataFrame.from_cudf_datafame(indexed_df) if indexed_df else None
+        return DataFrame.from_cudf(indexed_df) if indexed_df else None
 
     def _convert_subset(self,
                         subset: Union[Hashable, Sequence[Hashable]]) -> Iterable[str]:
@@ -779,7 +779,7 @@ class DataFrame(object):
         # get the ones that exist in df1 but not in df2
         diff_df = df1[bool_mask == False]
 
-        return DataFrame.from_cudf_datafame(diff_df)
+        return DataFrame.from_cudf(diff_df)
 
     def set_difference(self,
                        other: DataFrame,
@@ -1139,7 +1139,7 @@ def concat(
     # perform local concatenation, no need to distributed concat
     dfs = [obj._cdf for obj in dfs]
     concated_df = cudf.concat(dfs, axis=axis, join=join, ignore_index=ignore_index, sort=sort)
-    return DataFrame.from_cudf_datafame(concated_df)
+    return DataFrame.from_cudf(concated_df)
 
 
 def shuffle(df: cudf.DataFrame, hash_columns, env: CylonEnv = None) -> cudf.DataFrame:
