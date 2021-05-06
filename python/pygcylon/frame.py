@@ -529,7 +529,7 @@ class DataFrame(object):
             None if ``inplace=True`` and in the local mode with no distributed workers.
         """
 
-        subset = self._convert_subset(subset=subset)
+        subset = self._convert_subset(subset=subset, ignore_len_check=True)
 
         if env is None or env.world_size == 1:
             dropped_df = self._cdf.drop_duplicates(subset=subset, keep=keep, inplace=inplace, ignore_index=ignore_index)
@@ -704,9 +704,10 @@ class DataFrame(object):
         return DataFrame.from_cudf(indexed_df) if indexed_df else None
 
     def _convert_subset(self,
-                        subset: Union[Hashable, Sequence[Hashable]]) -> Iterable[str]:
+                        subset: Union[Hashable, Sequence[Hashable]],
+                        ignore_len_check: bool = False) -> Iterable[Hashable]:
         """
-        convert the subset to Iterable[str]
+        convert the subset to Iterable[Hashable]
         if the any value in subset does not exist in column names, raise an error
         based on: cudf.core.frame.Frame.drop_duplicates
 
@@ -725,12 +726,19 @@ class DataFrame(object):
             subset = (subset,)
         diff = set(subset) - set(self._cdf._data)
         if len(diff) != 0:
-            raise KeyError(f"columns {diff} do not exist")
+            raise ValueError(f"columns {diff} do not exist")
+
+        if ignore_len_check:
+            return subset
+
+        if len(subset) == 0:
+            raise ValueError("subset size is zero")
+
         return subset
 
     def _columns_ok_for_set_ops(self,
                                 other: DataFrame,
-                                subset: Iterable[str]):
+                                subset: Iterable[Hashable]):
         """
         Check whether:
             other is not None
@@ -756,7 +764,7 @@ class DataFrame(object):
     @staticmethod
     def _set_diff(df1: cudf.DataFrame,
                   df2: cudf.DataFrame,
-                  subset: Iterable[str]) -> DataFrame:
+                  subset: Iterable[Hashable]) -> DataFrame:
         """
         Calculate set difference of two local DataFrames
         First calculate a bool mask for the first column. True is both are equal, False otherwise
