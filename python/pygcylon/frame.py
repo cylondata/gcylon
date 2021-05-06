@@ -1,6 +1,7 @@
 from __future__ import annotations
-from typing import Hashable, List, Dict, Optional, Sequence, Union
+from typing import Hashable, List, Tuple, Dict, Optional, Sequence, Union, Iterable
 import cudf
+import numpy as np
 from pygcylon.data.table import shuffle as tshuffle
 from pygcylon.ctx.context import CylonContext
 
@@ -705,9 +706,34 @@ class DataFrame(object):
         indexed_df = self._cdf.reset_index(level=level, drop=drop, inplace=inplace, col_level=col_level, col_fill=col_fill)
         return DataFrame.from_cudf_datafame(indexed_df) if indexed_df else None
 
+    def _convert_subset(self,
+                        subset: Union[Hashable, Sequence[Hashable]]) -> Iterable[str]:
+        """
+        convert the subset to Iterable[str]
+        if the any value in subset does not exist in column names, raise an error
+        based on: cudf.core.frame.Frame.drop_duplicates
+
+        Returns
+        -------
+        List/Tuple of column names
+        """
+        if subset is None:
+            subset = self._cdf._column_names
+        elif (
+            not np.iterable(subset)
+            or isinstance(subset, str)
+            or isinstance(subset, tuple)
+            and subset in self._cdf._data.names
+        ):
+            subset = (subset,)
+        diff = set(subset) - set(self._cdf._data)
+        if len(diff) != 0:
+            raise KeyError(f"columns {diff} do not exist")
+        return subset
+
     def _columns_ok_for_set_ops(self,
                                 other: DataFrame,
-                                subset: List[str] = None):
+                                subset: Iterable[str]):
         """
         Check whether:
             other is not None
@@ -721,11 +747,7 @@ class DataFrame(object):
         if not isinstance(other, DataFrame):
             raise ValueError("other must be an instance of DataFrame")
 
-        subset = self._cdf.columns.to_list() if subset is None else subset
-
         for cname in subset:
-            if cname not in self._cdf.columns:
-                raise ValueError("self does not have a column named: ", cname)
             if cname not in other._cdf.columns:
                 raise ValueError("other does not have a column named: ", cname)
             # make sure both dataframes have the same data types,
@@ -737,7 +759,7 @@ class DataFrame(object):
     @staticmethod
     def _set_diff(df1: cudf.DataFrame,
                   df2: cudf.DataFrame,
-                  subset: List[str] = None) -> DataFrame:
+                  subset: Iterable[str]) -> DataFrame:
         """
         Calculate set difference of two local DataFrames
         First calculate a bool mask for the first column. True is both are equal, False otherwise
@@ -745,13 +767,16 @@ class DataFrame(object):
         apply the negative of the resulting bool mask to the dataframe
         that gives the difference
         """
-        subset = df1.columns.to_list() if subset is None else subset
 
-        cname = subset[0]
-        bool_mask = df1.__getattr__(cname).isin(df2.__getattr__(cname))
-        for cname in subset[1:]:
+        # init bool mask with all True
+        bm = [True] * df1._num_rows
+        bool_mask = cudf.Series(bm)
+
+        # determine the rows that are common in all columns
+        for cname in subset:
             bool_mask &= df1.__getattr__(cname).isin(df2.__getattr__(cname))
 
+        # get the ones that exist in df1 but not in df2
         diff_df = df1[bool_mask == False]
 
         return DataFrame.from_cudf_datafame(diff_df)
@@ -807,7 +832,7 @@ class DataFrame(object):
         Works with distributed datafarames similarly
         """
 
-        subset = self._cdf.columns.to_list() if subset is None else subset
+        subset = self._convert_subset(subset=subset)
         self._columns_ok_for_set_ops(other=other, subset=subset)
 
         df1 = self._cdf
@@ -887,7 +912,7 @@ class DataFrame(object):
         Works with distributed datafarames similarly
         """
 
-        subset = self._cdf.columns.to_list() if subset is None else subset
+        subset = self._convert_subset(subset=subset)
         self._columns_ok_for_set_ops(other=other, subset=subset)
 
         concated = concat([self, other], ignore_index=ignore_index)
@@ -940,8 +965,7 @@ class DataFrame(object):
         Works with distributed datafarames similarly
         """
 
-        subset = self._cdf.columns.to_list() if subset is None else subset
-
+        subset = self._convert_subset(subset=subset)
         self._columns_ok_for_set_ops(other=other, subset=subset)
 
         return self.merge(right=other,
