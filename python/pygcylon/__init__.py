@@ -17,7 +17,11 @@ from pygcylon.net.mpi_config import MPIConfig
 from pygcylon.frame import (
     CylonEnv,
     DataFrame,
-    concat
+    concat,
+    shuffle,
+)
+from pygcylon.groupby import (
+    GroupByDataFrame
 )
 
 from ._version import get_versions

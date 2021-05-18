@@ -4,7 +4,7 @@ import cudf
 import numpy as np
 from pygcylon.data.table import shuffle as tshuffle
 from pygcylon.ctx.context import CylonContext
-
+from pygcylon.groupby import GroupByDataFrame
 
 class CylonEnv(object):
 
@@ -981,6 +981,60 @@ class DataFrame(object):
                           right_index=False,
                           sort=False,
                           env=env)
+
+    # for distributed groupby, do we shuffle the whole table or just the grouped-by columns?
+    # just the grouping colmns and value cols
+
+    # getting column names from parameters
+    # names include index column names if level is specified by the parameter
+    # cudf.core.groupby.groupby._Grouping
+    # "names" parameter of this object
+    def groupby(
+        self,
+        by=None,
+        axis=0,
+        level=None,
+        as_index=True,
+        sort=False,
+        group_keys=True,
+        squeeze=False,
+        observed=False,
+        dropna=True,
+        env: CylonEnv = None
+    ) -> GroupByDataFrame:
+        if axis not in (0, "index"):
+            raise NotImplementedError("axis parameter is not yet implemented")
+
+        if group_keys is not True:
+            raise NotImplementedError(
+                "The group_keys keyword is not yet implemented"
+            )
+
+        if squeeze is not False:
+            raise NotImplementedError(
+                "squeeze parameter is not yet implemented"
+            )
+
+        if observed is not False:
+            raise NotImplementedError(
+                "observed parameter is not yet implemented"
+            )
+
+        if by is None and level is None:
+            raise TypeError(
+                "groupby() requires either by or level to be specified."
+            )
+
+        return GroupByDataFrame(
+            self,
+            by=by,
+            level=level,
+            as_index=as_index,
+            dropna=dropna,
+            sort=sort,
+            env=env,
+        )
+
 
 def concat(
         dfs,
