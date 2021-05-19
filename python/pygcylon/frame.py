@@ -81,7 +81,8 @@ class DataFrame(object):
         self._cdf.__setitem__(arg=key, value=value)
 
     def __getitem__(self, arg):
-        return self._cdf.__getitem__(arg=arg)
+        result = self._cdf.__getitem__(arg=arg)
+        return DataFrame.from_cudf(result) if isinstance(result, cudf.DataFrame) else result
 
     def __setattr__(self, key, col):
         if key == "_cdf":
