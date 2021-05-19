@@ -49,9 +49,15 @@ def dist_groupby():
     print("performed max on the same groupby object: \n", gby.max())
 
     # groupby on index column
-    df = df.set_index("a")
-    gby = df.groupby(level="a", env=env)
+    df1 = df.set_index("a")
+    gby = df1.groupby(level="a", env=env)
     print("df grouped-by on index a, performed sum: \n", gby.sum())
+    print("performed max on the same groupby object: \n", gby.max())
+
+    df1 = df[["a", "b"]]
+    print("two columns projected dataframe:\n", df1)
+    gby = df1.groupby("a", env=env)
+    print("grouped-by on column a of projected df, performed sum: \n", gby.sum())
     print("performed max on the same groupby object: \n", gby.max())
 
     env.finalize()
