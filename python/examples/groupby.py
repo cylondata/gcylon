@@ -5,16 +5,16 @@ def local_groupby():
     print("df: \n", df)
 
     gby = df.groupby("a")
-    print("df grouped-by on column a, performed sum: \n", gby.sum())
-    print("performed max on the same groupby object: \n", gby.max())
+    print("df grouped-by on column a, performed 'sum': \n", gby.sum())
+    print("performed 'max' on the same groupby object: \n", gby.max())
 
     gby = df.groupby(["a", "b"])
-    print("df grouped-by on columns a and b, performed sum: \n", gby.sum())
-    print("performed max on the same groupby object: \n", gby.max())
+    print("df grouped-by on columns 'a' and 'b', performed 'sum': \n", gby.sum())
+    print("performed 'max' on the same groupby object: \n", gby.max())
 
     gby = df.groupby("a")
-    print("df grouped-by on the column 'a', performed sum on the column 'b': \n", gby["b"].sum())
-    print("performed max on the same groupby object: \n", gby.max())
+    print("df grouped-by on the column 'a', performed 'sum' on the column 'b': \n", gby["b"].sum())
+    print("performed 'max' on the same groupby object: \n", gby.max())
 
 
 def dist_groupby():
@@ -37,28 +37,29 @@ def dist_groupby():
         print("df on rank 1: \n", df)
 
     gby = df.groupby("a", env=env)
-    print("df grouped-by on column a, performed sum: \n", gby.sum())
-    print("performed max on the same groupby object: \n", gby.max())
+    print("df grouped-by on column a, performed 'sum': \n", gby.sum())
+    print("performed 'max' on the same groupby object: \n", gby.max())
+    print("performed 'sum' on the same groupby object on the column 'b' only: \n", gby["b"].sum())
 
     gby = df.groupby(["a", "b"], env=env)
-    print("df grouped-by on columns a and b, performed sum: \n", gby.sum())
-    print("performed max on the same groupby object: \n", gby.max())
+    print("df grouped-by on columns a and b, performed 'sum': \n", gby.sum())
+    print("performed 'max' on the same groupby object: \n", gby.max())
 
     gby = df.groupby("a")["b"]
-    print("df grouped-by on the column 'a', performed sum on the column 'b': \n", gby.sum())
-    print("performed max on the same groupby object: \n", gby.max())
+    print("df grouped-by on the column 'a', performed 'sum' on the column 'b': \n", gby.sum())
+    print("performed 'max' on the same groupby object: \n", gby.max())
 
     # groupby on index column
     df1 = df.set_index("a")
     gby = df1.groupby(level="a", env=env)
-    print("df grouped-by on index a, performed sum: \n", gby.sum())
-    print("performed max on the same groupby object: \n", gby.max())
+    print("df grouped-by on index a, performed 'sum': \n", gby.sum())
+    print("performed 'max' on the same groupby object: \n", gby.max())
 
     df1 = df[["a", "b"]]
     print("two columns projected dataframe:\n", df1)
     gby = df1.groupby("a", env=env)
-    print("grouped-by on column a of projected df, performed sum: \n", gby.sum())
-    print("performed max on the same groupby object: \n", gby.max())
+    print("grouped-by on column 'a' of projected df, performed 'sum': \n", gby.sum())
+    print("performed 'max' on the same groupby object: \n", gby.max())
 
     env.finalize()
 
