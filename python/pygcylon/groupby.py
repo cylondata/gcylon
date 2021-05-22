@@ -39,41 +39,42 @@ class GroupByDataFrame(object):
         When calculating groupby in distributed DataFrames,
         an all-to-all shuffle communication operation is performed.
         It is very important to avoid unnecessary shuffle operations,
-        since shuffling the data among distributed workers are constly.
+        since the shuffling of the dataframe among distributed workers are constly.
 
         When a GroupByDataFrame object is created, and the first groupby operation is performed,
         this shuffle operation is performed by partitioning the tables on the groupby columns and
-        all datarrame columns are shuffled.
+        all dataframe columns are shuffled.
 
         So, to get the best performance in a distributed dataframe,
         one should first create a GroupByDataFrame object and perform many aggregations on it.
         Because, creating and performing a groupby object requires a distributed shuffle.
-        When we reuse the same GroupByDataFrame, we avoid re-shuffling the dataframe
+        When we reuse the same GroupByDataFrame object, we avoid re-shuffling the dataframe.
         For example following code performs a single shuffle only:
             gby = df.groupby(["column1", "column2"], ..., env=env)
             gby.sum()
             gby["columnx"].mean()
             gby[["columnx", "columny"]].min()
 
-        One must avoid always running the groupby on the dataframe object.
-        For example, all three of the following operations perform the distributed shuffle
+        One must avoid running the groupby operation on the dataframe object.
+        For example, all three of the following operations perform the a separate distributed shuffle:
             df.groupby("columnq", env=env)["columnb"].sum()
             df.groupby("columnq", env=env)["columnb"].mean()
-            df.groupby("columnq", env=env)["columnc"].mean()
+            df.groupby("columnq", env=env)["columnc"].max()
         One can easily perform a single shuffle for these three lines by first creating a GroupByDataFrame object
-        and performing the aggragations using it
+        and performing the aggragations using it.
 
         A second important point is to create a new dataframe from a subset of columns
-        and performing the groupby on it when working with dataframe with many columns.
+        and performing the groupby on it when working with dataframes with many columns.
         Suppose, you are working with a dataframe with hundreds of columns
         but you would like to perform the groupby and aggregations on a small number of columns.
         First, you need to create a new dataframe with those groupby and aggregations columns.
         Then, perform the groupby on this new dataframe.
-        This will avaoid shufling the whole dataframe. Only the columns on the new dataframe will be shuffled.
+        This will avoid shufling the whole dataframe. Only the columns on the new dataframe will be shuffled.
             df2 = df[["columnx", "columny", "columnz", ...]]
             gby = df2.groupby("columnx", env=env)
             gby["columny"].sum()
             gby["columnz"].mean()
+        In this case, the shuffling is performed only on the columns of df2.
 
 
         Parameters
