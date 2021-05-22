@@ -295,3 +295,59 @@ class GroupByDataFrame(object):
         Returns a dictionary mapping group keys to row labels.
         """
         return self._cudf_groupby.groups
+
+    def agg(self, func):
+        """
+        Apply aggregation(s) to the groups.
+
+        Parameters
+        ----------
+        func : str, callable, list or dict
+
+        Returns
+        -------
+        A Series or DataFrame containing the combined results of the
+        aggregation.
+
+        Examples
+        --------
+        >>> import pygcylon as gc
+        >>> df = gc.DataFrame(
+            {'a': [1, 1, 2], 'b': [1, 2, 3], 'c': [2, 2, 1]})
+        >>> gby = df.groupby('a')
+        >>> gby.agg('sum')
+           b  c
+        a
+        2  3  1
+        1  3  4
+
+        Specifying a list of aggregations to perform on each column.
+
+        >>> gby.agg(['sum', 'min'])
+            b       c
+          sum min sum min
+        a
+        2   3   3   1   1
+        1   3   1   4   2
+
+        Using a dict to specify aggregations to perform per column.
+
+        >>> gby.agg({'a': 'max', 'b': ['min', 'mean']})
+            a   b
+          max min mean
+        a
+        2   2   3  3.0
+        1   1   1  1.5
+
+        Using lambdas/callables to specify aggregations taking parameters.
+
+        >>> f1 = lambda x: x.quantile(0.5); f1.__name__ = "q0.5"
+        >>> f2 = lambda x: x.quantile(0.75); f2.__name__ = "q0.75"
+        >>> gby.agg([f1, f2])
+             b          c
+          q0.5 q0.75 q0.5 q0.75
+        a
+        1  1.5  1.75  2.0   2.0
+        2  3.0  3.00  1.0   1.0
+        """
+        return self._cudf_groupby.agg(func=func)
