@@ -276,3 +276,9 @@ class GroupByDataFrame(object):
             raise ValueError("Please provide (int, str, tuple) or list of these as column names: ", key)
 
         return self
+
+    def size(self):
+        """
+        Return the size of each group.
+        """
+        return self._cudf_groupby.size()

@@ -40,6 +40,7 @@ def dist_groupby():
     print("performed 'max' on the same groupby object: \n", gby.max())
     print("performed 'sum' on the same groupby object, aggregated on the column 'b' only: \n", gby["b"].sum())
     print("performed 'mean' on the same groupby object: \n", gby.mean())
+    print("sizes of each group: \n", gby.size())
 
     gby = df.groupby(["a", "b"], env=env)
     print("df grouped-by on columns a and b, performed 'sum': \n", gby.sum())
