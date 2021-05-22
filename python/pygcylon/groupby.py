@@ -351,3 +351,9 @@ class GroupByDataFrame(object):
         2  3.0  3.00  1.0   1.0
         """
         return self._cudf_groupby.agg(func=func)
+
+    def nth(self, n):
+        """
+        Return the nth row from each group.
+        """
+        return self._cudf_groupby.nth(n=n)
