@@ -163,16 +163,20 @@ class GroupByDataFrame(object):
         self._dropna = dropna
         self._env = env
 
-        # determine column names
+        # initialize:
+        #   self._grouping_columns
         if isinstance(by, _Grouping):
             self._grouping_columns = by.names
         else:
             tmp_grouping = _Grouping(df.to_cudf(), by, level)
             self._grouping_columns = tmp_grouping.names
 
+        # shuffle the dataframe
+        # initialize:
+        #   self._shuffled_cdf
+        #   self._cudf_groupby
+        self._shuffle()
         self._value_columns = []
-        self._shuffled_cdf = None
-        self._cudf_groupby = None
 
     def _shuffle(self):
         """
