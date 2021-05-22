@@ -277,6 +277,12 @@ class GroupByDataFrame(object):
 
         return self
 
+    def __iter__(self):
+        """
+        Iterating through group-name & grouped values
+        """
+        return self._cudf_groupby.__iter__()
+
     def size(self):
         """
         Return the size of each group.

@@ -10,6 +10,10 @@ def local_groupby():
     print("performed 'sum' on the same groupby object, aggregated on the column 'b' only: \n", gby["b"].sum())
     print("performed 'sum' on the same groupby object, aggregated on the column 'c' only: \n", gby["c"].sum())
     print("performed 'mean' on the same groupby object: \n", gby.mean())
+    print("iterate through the groups: ")
+    for name, gr in gby:
+        print("group: ", name)
+        print(gr)
 
     gby = df.groupby(["a", "b"])
     print("df grouped-by on columns 'a' and 'b', performed 'sum': \n", gby.sum())
@@ -67,5 +71,5 @@ def dist_groupby():
 
 #####################################################
 
-#local_groupby()
-dist_groupby()
+local_groupby()
+#dist_groupby()
