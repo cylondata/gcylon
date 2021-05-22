@@ -357,3 +357,9 @@ class GroupByDataFrame(object):
         Return the nth row from each group.
         """
         return self._cudf_groupby.nth(n=n)
+
+    def serialize(self):
+        return self._cudf_groupby.serialize()
+
+    def deserialize(self, header, frames):
+        return self._cudf_groupby.deserialize(header=header, frames=frames)
