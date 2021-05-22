@@ -15,6 +15,11 @@ def local_groupby():
         print("group: ", name)
         print(gr)
 
+    print("iterate through the group indices: ")
+    for key in gby.groups:
+        print("group key: ", key)
+        print(gby.groups[key])
+
     gby = df.groupby(["a", "b"])
     print("df grouped-by on columns 'a' and 'b', performed 'sum': \n", gby.sum())
     print("performed 'max' on the same groupby object: \n", gby.max())

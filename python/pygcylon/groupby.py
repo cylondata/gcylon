@@ -288,3 +288,10 @@ class GroupByDataFrame(object):
         Return the size of each group.
         """
         return self._cudf_groupby.size()
+
+    @property
+    def groups(self):
+        """
+        Returns a dictionary mapping group keys to row labels.
+        """
+        return self._cudf_groupby.groups
