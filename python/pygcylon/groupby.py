@@ -363,3 +363,58 @@ class GroupByDataFrame(object):
 
     def deserialize(self, header, frames):
         return self._cudf_groupby.deserialize(header=header, frames=frames)
+
+    def pipe(self, func, *args, **kwargs):
+        """
+        Apply a function `func` with arguments to this GroupBy
+        object and return the function’s result.
+
+        Parameters
+        ----------
+        func : function
+            Function to apply to this GroupBy object or,
+            alternatively, a ``(callable, data_keyword)`` tuple where
+            ``data_keyword`` is a string indicating the keyword of
+            ``callable`` that expects the GroupBy object.
+        args : iterable, optional
+            Positional arguments passed into ``func``.
+        kwargs : mapping, optional
+            A dictionary of keyword arguments passed into ``func``.
+
+        Returns
+        -------
+        object : the return type of ``func``.
+
+        See also
+        --------
+        cudf.core.series.Series.pipe
+            Apply a function with arguments to a series.
+
+        cudf.core.dataframe.DataFrame.pipe
+            Apply a function with arguments to a dataframe.
+
+        apply
+            Apply function to each group instead of to the full GroupBy object.
+
+        Examples
+        --------
+        >>> import pygcylon as gc
+        >>> df = gc.DataFrame({'A': ['a', 'b', 'a', 'b'], 'B': [1, 2, 3, 4]})
+        >>> df
+           A  B
+        0  a  1
+        1  b  2
+        2  a  3
+        3  b  4
+
+        To get the difference between each groups maximum and minimum value
+        in one pass, you can do
+
+        >>> gby = df.groupby('A')
+        >>> gby.pipe(lambda x: x.max() - x.min())
+           B
+        A
+        a  2
+        b  2
+        """
+        return self._cudf_groupby.pipe(func, *args, **kwargs)
