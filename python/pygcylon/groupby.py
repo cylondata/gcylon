@@ -593,3 +593,14 @@ class GroupByDataFrame(object):
 
         """
         return self._cudf_groupby.apply_grouped(function, **kwargs)
+
+    def rolling(self, *args, **kwargs):
+        """
+        Returns a `RollingGroupby` object that enables rolling window
+        calculations on the groups.
+
+        See also
+        --------
+        cudf.core.window.Rolling
+        """
+        return self._cudf_groupby.rolling(*args, **kwargs)
