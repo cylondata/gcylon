@@ -1003,6 +1003,131 @@ class DataFrame(object):
         dropna=True,
         env: CylonEnv = None
     ) -> GroupByDataFrame:
+        """
+        Group DataFrame using a mapper or by a Series of columns.
+        Works with both single DataFrame or distributed DataFrame
+
+        A groupby operation involves some combination of splitting the object,
+        applying a function, and combining the results. This can be used to
+        group large amounts of data and compute operations on these groups.
+
+        When calculating groupby in distributed DataFrames,
+        an all-to-all shuffle communication operation is performed.
+        It is very important to avoid unnecessary shuffle operations,
+        since the shuffling of the dataframe among distributed workers are constly.
+
+        When a GroupByDataFrame object is created, and the first groupby operation is performed,
+        this shuffle operation is performed by partitioning the tables on the groupby columns and
+        all dataframe columns are shuffled.
+
+        So, to get the best performance in a distributed dataframe,
+        one should first create a GroupByDataFrame object and perform many aggregations on it.
+        Because, creating and performing a groupby object requires a distributed shuffle.
+        When we reuse the same GroupByDataFrame object, we avoid re-shuffling the dataframe.
+        For example following code performs a single shuffle only:
+            gby = df.groupby(["column1", "column2"], ..., env=env)
+            gby.sum()
+            gby["columnx"].mean()
+            gby[["columnx", "columny"]].min()
+
+        One must avoid running the groupby operation on the dataframe object.
+        For example, all three of the following operations perform the a separate distributed shuffle:
+            df.groupby("columnq", env=env)["columnb"].sum()
+            df.groupby("columnq", env=env)["columnb"].mean()
+            df.groupby("columnq", env=env)["columnc"].max()
+        One can easily perform a single shuffle for these three lines by first creating a GroupByDataFrame object
+        and performing the aggragations using it.
+
+        A second important point is to create a new dataframe from a subset of columns
+        and performing the groupby on it when working with dataframes with many columns.
+        Suppose, you are working with a dataframe with hundreds of columns
+        but you would like to perform the groupby and aggregations on a small number of columns.
+        First, you need to create a new dataframe with those groupby and aggregations columns.
+        Then, perform the groupby on this new dataframe.
+        This will avoid shufling the whole dataframe. Only the columns on the new dataframe will be shuffled.
+            df2 = df[["columnx", "columny", "columnz", ...]]
+            gby = df2.groupby("columnx", env=env)
+            gby["columny"].sum()
+            gby["columnz"].mean()
+        In this case, the shuffling is performed only on the columns of df2.
+
+
+        Parameters
+        ----------
+        by : mapping, function, label, or list of labels
+            Used to determine the groups for the groupby. If by is a
+            function, it’s called on each value of the object’s index.
+            If a dict or Series is passed, the Series or dict VALUES will
+            be used to determine the groups (the Series’ values are first
+            aligned; see .align() method). If a cupy array is passed, the
+            values are used as-is determine the groups. A label or list
+            of labels may be passed to group by the columns in self.
+            Notice that a tuple is interpreted as a (single) key.
+        level : int, level name, or sequence of such, default None
+            If the axis is a MultiIndex (hierarchical), group by a particular
+            level or levels.
+        as_index : bool, default True
+            For aggregated output, return object with group labels as
+            the index. Only relevant for DataFrame input.
+            as_index=False is effectively “SQL-style” grouped output.
+        sort : bool, default False
+            Sort result by group key. Differ from Pandas, cudf defaults to
+            ``False`` for better performance. Note this does not influence
+            the order of observations within each group. Groupby preserves
+            the order of rows within each group.
+        dropna : bool, optional
+            If True (default), do not include the "null" group.
+        env: CylonEnv needs to be provided for distributed groupby operation.
+
+        Returns
+        -------
+            DataFrameGroupBy
+                Returns a groupby object that contains information
+                about the groups.
+
+        Examples
+        --------
+        >>> import pygcylon as gc
+        >>> # first try local groupby on a single DataFrame
+        >>> df = gc.DataFrame({'a': [1, 1, 1, 2, 2], 'b': [1, 1, 2, 2, 3], 'c': [1, 2, 3, 4, 5]})
+        >>> df
+           a  b  c
+        0  1  1  1
+        1  1  1  2
+        2  1  2  3
+        3  2  2  4
+        4  2  3  5
+        >>> # create a groupby object and perform multiple operations
+        >>> gby = df.groupby("a")
+        >>> gby.sum()
+           b  c
+        a
+        2  5  9
+        1  4  6
+        >>> gby.max()
+           b  c
+        a
+        2  3  5
+        1  2  3
+        >>> gby["b"].sum()
+           b
+        a
+        2  5
+        1  4
+        >>> # to perform groupby on a different set of columns, we need to create a new GroupByDataFrame object
+        >>> gby = df.groupby(["a", "b"])
+        >>> gby.sum()
+             c
+        a b
+        1 2  3
+        2 2  4
+          3  5
+        1 1  3
+
+        >>> # todo: add distributed DataFrame examples
+        >>> env: gc.CylonEnv = gc.CylonEnv(config=gc.MPIConfig(), distributed=True)
+
+        """
         if axis not in (0, "index"):
             raise NotImplementedError("axis parameter is not yet implemented")
 

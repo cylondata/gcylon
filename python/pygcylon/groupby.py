@@ -39,41 +39,42 @@ class GroupByDataFrame(object):
         When calculating groupby in distributed DataFrames,
         an all-to-all shuffle communication operation is performed.
         It is very important to avoid unnecessary shuffle operations,
-        since shuffling the data among distributed workers are constly.
+        since the shuffling of the dataframe among distributed workers are constly.
 
         When a GroupByDataFrame object is created, and the first groupby operation is performed,
         this shuffle operation is performed by partitioning the tables on the groupby columns and
-        all datarrame columns are shuffled.
+        all dataframe columns are shuffled.
 
         So, to get the best performance in a distributed dataframe,
         one should first create a GroupByDataFrame object and perform many aggregations on it.
         Because, creating and performing a groupby object requires a distributed shuffle.
-        When we reuse the same GroupByDataFrame, we avoid re-shuffling the dataframe
+        When we reuse the same GroupByDataFrame object, we avoid re-shuffling the dataframe.
         For example following code performs a single shuffle only:
             gby = df.groupby(["column1", "column2"], ..., env=env)
             gby.sum()
             gby["columnx"].mean()
             gby[["columnx", "columny"]].min()
 
-        One must avoid always running the groupby on the dataframe object.
-        For example, all three of the following operations perform the distributed shuffle
+        One must avoid running the groupby operation on the dataframe object.
+        For example, all three of the following operations perform the a separate distributed shuffle:
             df.groupby("columnq", env=env)["columnb"].sum()
             df.groupby("columnq", env=env)["columnb"].mean()
-            df.groupby("columnq", env=env)["columnc"].mean()
+            df.groupby("columnq", env=env)["columnc"].max()
         One can easily perform a single shuffle for these three lines by first creating a GroupByDataFrame object
-        and performing the aggragations using it
+        and performing the aggragations using it.
 
         A second important point is to create a new dataframe from a subset of columns
-        and performing the groupby on it when working with dataframe with many columns.
+        and performing the groupby on it when working with dataframes with many columns.
         Suppose, you are working with a dataframe with hundreds of columns
         but you would like to perform the groupby and aggregations on a small number of columns.
         First, you need to create a new dataframe with those groupby and aggregations columns.
         Then, perform the groupby on this new dataframe.
-        This will avaoid shufling the whole dataframe. Only the columns on the new dataframe will be shuffled.
+        This will avoid shufling the whole dataframe. Only the columns on the new dataframe will be shuffled.
             df2 = df[["columnx", "columny", "columnz", ...]]
             gby = df2.groupby("columnx", env=env)
             gby["columny"].sum()
             gby["columnz"].mean()
+        In this case, the shuffling is performed only on the columns of df2.
 
 
         Parameters
@@ -113,7 +114,6 @@ class GroupByDataFrame(object):
         --------
         >>> import pygcylon as gc
         >>> # first try local groupby on a single DataFrame
-        >>> env: gc.CylonEnv = gc.CylonEnv(config=gc.MPIConfig(), distributed=True)
         >>> df = gc.DataFrame({'a': [1, 1, 1, 2, 2], 'b': [1, 1, 2, 2, 3], 'c': [1, 2, 3, 4, 5]})
         >>> df
            a  b  c
@@ -162,16 +162,20 @@ class GroupByDataFrame(object):
         self._dropna = dropna
         self._env = env
 
-        # determine column names
+        # initialize:
+        #   self._grouping_columns
         if isinstance(by, _Grouping):
             self._grouping_columns = by.names
         else:
             tmp_grouping = _Grouping(df.to_cudf(), by, level)
             self._grouping_columns = tmp_grouping.names
 
+        # shuffle the dataframe
+        # initialize:
+        #   self._shuffled_cdf
+        #   self._cudf_groupby
+        self._shuffle()
         self._value_columns = []
-        self._shuffled_cdf = None
-        self._cudf_groupby = None
 
     def _shuffle(self):
         """
@@ -271,3 +275,331 @@ class GroupByDataFrame(object):
             raise ValueError("Please provide (int, str, tuple) or list of these as column names: ", key)
 
         return self
+
+    def __iter__(self):
+        """
+        Iterating through group-name & grouped values
+        """
+        return self._cudf_groupby.__iter__()
+
+    def size(self):
+        """
+        Return the size of each group.
+        """
+        return self._cudf_groupby.size()
+
+    @property
+    def groups(self):
+        """
+        Returns a dictionary mapping group keys to row labels.
+        """
+        return self._cudf_groupby.groups
+
+    def agg(self, func):
+        """
+        Apply aggregation(s) to the groups.
+
+        Parameters
+        ----------
+        func : str, callable, list or dict
+
+        Returns
+        -------
+        A Series or DataFrame containing the combined results of the
+        aggregation.
+
+        Examples
+        --------
+        >>> import pygcylon as gc
+        >>> df = gc.DataFrame(
+            {'a': [1, 1, 2], 'b': [1, 2, 3], 'c': [2, 2, 1]})
+        >>> gby = df.groupby('a')
+        >>> gby.agg('sum')
+           b  c
+        a
+        2  3  1
+        1  3  4
+
+        Specifying a list of aggregations to perform on each column.
+
+        >>> gby.agg(['sum', 'min'])
+            b       c
+          sum min sum min
+        a
+        2   3   3   1   1
+        1   3   1   4   2
+
+        Using a dict to specify aggregations to perform per column.
+
+        >>> gby.agg({'a': 'max', 'b': ['min', 'mean']})
+            a   b
+          max min mean
+        a
+        2   2   3  3.0
+        1   1   1  1.5
+
+        Using lambdas/callables to specify aggregations taking parameters.
+
+        >>> f1 = lambda x: x.quantile(0.5); f1.__name__ = "q0.5"
+        >>> f2 = lambda x: x.quantile(0.75); f2.__name__ = "q0.75"
+        >>> gby.agg([f1, f2])
+             b          c
+          q0.5 q0.75 q0.5 q0.75
+        a
+        1  1.5  1.75  2.0   2.0
+        2  3.0  3.00  1.0   1.0
+        """
+        return self._cudf_groupby.agg(func=func)
+
+    def nth(self, n):
+        """
+        Return the nth row from each group.
+        """
+        return self._cudf_groupby.nth(n=n)
+
+    def serialize(self):
+        return self._cudf_groupby.serialize()
+
+    def deserialize(self, header, frames):
+        return self._cudf_groupby.deserialize(header=header, frames=frames)
+
+    def pipe(self, func, *args, **kwargs):
+        """
+        Apply a function `func` with arguments to this GroupBy
+        object and return the function’s result.
+
+        Parameters
+        ----------
+        func : function
+            Function to apply to this GroupBy object or,
+            alternatively, a ``(callable, data_keyword)`` tuple where
+            ``data_keyword`` is a string indicating the keyword of
+            ``callable`` that expects the GroupBy object.
+        args : iterable, optional
+            Positional arguments passed into ``func``.
+        kwargs : mapping, optional
+            A dictionary of keyword arguments passed into ``func``.
+
+        Returns
+        -------
+        object : the return type of ``func``.
+
+        See also
+        --------
+        cudf.core.series.Series.pipe
+            Apply a function with arguments to a series.
+
+        cudf.core.dataframe.DataFrame.pipe
+            Apply a function with arguments to a dataframe.
+
+        apply
+            Apply function to each group instead of to the full GroupBy object.
+
+        Examples
+        --------
+        >>> import pygcylon as gc
+        >>> df = gc.DataFrame({'A': ['a', 'b', 'a', 'b'], 'B': [1, 2, 3, 4]})
+        >>> df
+           A  B
+        0  a  1
+        1  b  2
+        2  a  3
+        3  b  4
+
+        To get the difference between each groups maximum and minimum value
+        in one pass, you can do
+
+        >>> gby = df.groupby('A')
+        >>> gby.pipe(lambda x: x.max() - x.min())
+           B
+        A
+        a  2
+        b  2
+        """
+        return self._cudf_groupby.pipe(func, *args, **kwargs)
+
+    def apply(self, function):
+        """Apply a python transformation function over the grouped chunk.
+
+        Parameters
+        ----------
+        func : function
+          The python transformation function that will be applied
+          on the grouped chunk.
+
+        Examples
+        --------
+        .. code-block:: python
+
+          from pygcylon import DataFrame
+          df = DataFrame()
+          df['key'] = [0, 0, 1, 1, 2, 2, 2]
+          df['val'] = [0, 1, 2, 3, 4, 5, 6]
+          groups = df.groupby(['key'])
+
+          # Define a function to apply to each row in a group
+          def mult(df):
+            df['out'] = df['key'] * df['val']
+            return df
+
+          result = groups.apply(mult)
+          print(result)
+
+        Output:
+
+        .. code-block:: python
+
+             key  val  out
+          0    0    0    0
+          1    0    1    0
+          2    1    2    2
+          3    1    3    3
+          4    2    4    8
+          5    2    5   10
+          6    2    6   12
+        """
+        return self._cudf_groupby.apply(function)
+
+    def apply_grouped(self, function, **kwargs):
+        """Apply a transformation function over the grouped chunk.
+
+        This uses numba's CUDA JIT compiler to convert the Python
+        transformation function into a CUDA kernel, thus will have a
+        compilation overhead during the first run.
+
+        Parameters
+        ----------
+        func : function
+          The transformation function that will be executed on the CUDA GPU.
+        incols: list
+          A list of names of input columns.
+        outcols: list
+          A dictionary of output column names and their dtype.
+        kwargs : dict
+          name-value of extra arguments. These values are passed directly into
+          the function.
+
+        Examples
+        --------
+        .. code-block:: python
+
+            from pygcylon import DataFrame
+            from numba import cuda
+            import numpy as np
+
+            df = DataFrame()
+            df['key'] = [0, 0, 1, 1, 2, 2, 2]
+            df['val'] = [0, 1, 2, 3, 4, 5, 6]
+            groups = df.groupby(['key'])
+
+            # Define a function to apply to each group
+            def mult_add(key, val, out1, out2):
+                for i in range(cuda.threadIdx.x, len(key), cuda.blockDim.x):
+                    out1[i] = key[i] * val[i]
+                    out2[i] = key[i] + val[i]
+
+            result = groups.apply_grouped(mult_add,
+                                          incols=['key', 'val'],
+                                          outcols={'out1': np.int32,
+                                                   'out2': np.int32},
+                                          # threads per block
+                                          tpb=8)
+
+            print(result)
+
+        Output:
+
+        .. code-block:: python
+
+               key  val out1 out2
+            0    0    0    0    0
+            1    0    1    0    1
+            2    1    2    2    3
+            3    1    3    3    4
+            4    2    4    8    6
+            5    2    5   10    7
+            6    2    6   12    8
+
+
+
+        .. code-block:: python
+
+            import pygcylon as gc
+            import numpy as np
+            from numba import cuda
+            import pandas as pd
+            from random import randint
+
+
+            # Create a random 15 row dataframe with one categorical
+            # feature and one random integer valued feature
+            df = gc.DataFrame(
+                    {
+                        "cat": [1] * 5 + [2] * 5 + [3] * 5,
+                        "val": [randint(0, 100) for _ in range(15)],
+                    }
+                 )
+
+            # Group the dataframe by its categorical feature
+            groups = df.groupby("cat")
+
+            # Define a kernel which takes the moving average of a
+            # sliding window
+            def rolling_avg(val, avg):
+                win_size = 3
+                for i in range(cuda.threadIdx.x, len(val), cuda.blockDim.x):
+                    if i < win_size - 1:
+                        # If there is not enough data to fill the window,
+                        # take the average to be NaN
+                        avg[i] = np.nan
+                    else:
+                        total = 0
+                        for j in range(i - win_size + 1, i + 1):
+                            total += val[j]
+                        avg[i] = total / win_size
+
+            # Compute moving averages on all groups
+            results = groups.apply_grouped(rolling_avg,
+                                           incols=['val'],
+                                           outcols=dict(avg=np.float64))
+            print("Results:", results)
+
+            # Note this gives the same result as its pandas equivalent
+            pdf = df.to_pandas()
+            pd_results = pdf.groupby('cat')['val'].rolling(3).mean()
+
+
+        Output:
+
+        .. code-block:: python
+
+            Results:
+                 cat  val                 avg
+            0    1   16
+            1    1   45
+            2    1   62                41.0
+            3    1   45  50.666666666666664
+            4    1   26  44.333333333333336
+            5    2    5
+            6    2   51
+            7    2   77  44.333333333333336
+            8    2    1                43.0
+            9    2   46  41.333333333333336
+            [5 more rows]
+
+        This is functionally equivalent to `pandas.DataFrame.Rolling
+        <https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.rolling.html>`_
+
+        """
+        return self._cudf_groupby.apply_grouped(function, **kwargs)
+
+    def rolling(self, *args, **kwargs):
+        """
+        Returns a `RollingGroupby` object that enables rolling window
+        calculations on the groups.
+
+        See also
+        --------
+        cudf.core.window.Rolling
+        """
+        return self._cudf_groupby.rolling(*args, **kwargs)
