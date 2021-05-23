@@ -418,3 +418,45 @@ class GroupByDataFrame(object):
         b  2
         """
         return self._cudf_groupby.pipe(func, *args, **kwargs)
+
+    def apply(self, function):
+        """Apply a python transformation function over the grouped chunk.
+
+        Parameters
+        ----------
+        func : function
+          The python transformation function that will be applied
+          on the grouped chunk.
+
+        Examples
+        --------
+        .. code-block:: python
+
+          from pygcylon import DataFrame
+          df = DataFrame()
+          df['key'] = [0, 0, 1, 1, 2, 2, 2]
+          df['val'] = [0, 1, 2, 3, 4, 5, 6]
+          groups = df.groupby(['key'])
+
+          # Define a function to apply to each row in a group
+          def mult(df):
+            df['out'] = df['key'] * df['val']
+            return df
+
+          result = groups.apply(mult)
+          print(result)
+
+        Output:
+
+        .. code-block:: python
+
+             key  val  out
+          0    0    0    0
+          1    0    1    0
+          2    1    2    2
+          3    1    3    3
+          4    2    4    8
+          5    2    5   10
+          6    2    6   12
+        """
+        return self._cudf_groupby.apply(function)
