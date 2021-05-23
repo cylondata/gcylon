@@ -114,7 +114,6 @@ class GroupByDataFrame(object):
         --------
         >>> import pygcylon as gc
         >>> # first try local groupby on a single DataFrame
-        >>> env: gc.CylonEnv = gc.CylonEnv(config=gc.MPIConfig(), distributed=True)
         >>> df = gc.DataFrame({'a': [1, 1, 1, 2, 2], 'b': [1, 1, 2, 2, 3], 'c': [1, 2, 3, 4, 5]})
         >>> df
            a  b  c
