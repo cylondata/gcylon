@@ -142,6 +142,7 @@ _include_dirs = ["../cpp/src/cylon/cudf",
                  cylon_include_dir,
                  CUDA['include'],
                  conda_include_dir,
+                 os.path.join(conda_include_dir, "libcudf/libcudacxx"),
                  np.get_include(),
                  os.path.dirname(sysconfig.get_path("include"))]
 
