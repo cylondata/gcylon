@@ -349,13 +349,15 @@ class GroupByDataFrame(object):
         1  1.5  1.75  2.0   2.0
         2  3.0  3.00  1.0   1.0
         """
-        return self._cudf_groupby.agg(func=func)
+        result = self._cudf_groupby.agg(func=func)
+        return pygcylon.DataFrame.from_cudf(result) if isinstance(result, cudf.DataFrame) else result
 
     def nth(self, n):
         """
         Return the nth row from each group.
         """
-        return self._cudf_groupby.nth(n=n)
+        result = self._cudf_groupby.nth(n=n)
+        return pygcylon.DataFrame.from_cudf(result) if isinstance(result, cudf.DataFrame) else result
 
     def serialize(self):
         return self._cudf_groupby.serialize()
@@ -416,7 +418,8 @@ class GroupByDataFrame(object):
         a  2
         b  2
         """
-        return self._cudf_groupby.pipe(func, *args, **kwargs)
+        result = self._cudf_groupby.pipe(func, *args, **kwargs)
+        return pygcylon.DataFrame.from_cudf(result) if isinstance(result, cudf.DataFrame) else result
 
     def apply(self, function):
         """Apply a python transformation function over the grouped chunk.
@@ -458,7 +461,8 @@ class GroupByDataFrame(object):
           5    2    5   10
           6    2    6   12
         """
-        return self._cudf_groupby.apply(function)
+        result = self._cudf_groupby.apply(function)
+        return pygcylon.DataFrame.from_cudf(result) if isinstance(result, cudf.DataFrame) else result
 
     def apply_grouped(self, function, **kwargs):
         """Apply a transformation function over the grouped chunk.
@@ -591,7 +595,8 @@ class GroupByDataFrame(object):
         <https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.rolling.html>`_
 
         """
-        return self._cudf_groupby.apply_grouped(function, **kwargs)
+        result = self._cudf_groupby.apply_grouped(function, **kwargs)
+        return pygcylon.DataFrame.from_cudf(result) if isinstance(result, cudf.DataFrame) else result
 
     def rolling(self, *args, **kwargs):
         """
@@ -602,4 +607,5 @@ class GroupByDataFrame(object):
         --------
         cudf.core.window.Rolling
         """
-        return self._cudf_groupby.rolling(*args, **kwargs)
+        result = self._cudf_groupby.rolling(*args, **kwargs)
+        return pygcylon.DataFrame.from_cudf(result) if isinstance(result, cudf.DataFrame) else result
