@@ -18,9 +18,7 @@ Cython Interface for GTable
 
 from libcpp.memory cimport shared_ptr
 from libcpp.memory cimport unique_ptr
-from libcpp cimport bool
 from libcpp.vector cimport vector
-from libcpp.string cimport string
 from pygcylon.ctx.context cimport CCylonContext
 from pygcylon.common.status cimport CStatus
 

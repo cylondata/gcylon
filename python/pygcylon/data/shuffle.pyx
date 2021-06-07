@@ -16,20 +16,14 @@ from libcpp.memory cimport shared_ptr
 from libcpp.memory cimport unique_ptr
 from libcpp.utility cimport move
 from libcpp.vector cimport vector
-from libcpp.string cimport string
-from libcpp cimport bool
-from cython.operator cimport dereference as deref
 from pygcylon.ctx.context cimport CCylonContext
-from pygcylon.ctx.context cimport CylonContext
 from pygcylon.api.lib cimport pycylon_unwrap_context
 
-from pygcylon.data.table cimport Shuffle
+from pygcylon.data.shuffle cimport Shuffle
 
 from cudf._lib.cpp.table.table_view cimport table_view
 from cudf._lib.cpp.table.table cimport table
-from cudf._lib.cpp.column.column cimport column
 from cudf._lib.table cimport Table
-from cudf._lib.column cimport Column
 
 def shuffle(object tbl, hash_columns, context):
     cdef CStatus status

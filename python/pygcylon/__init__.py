@@ -12,7 +12,6 @@
 # limitations under the License.
 ##
 
-from pygcylon.ctx.context import CylonContext
 from pygcylon.net.mpi_config import MPIConfig
 from pygcylon.frame import (
     CylonEnv,
