@@ -310,17 +310,32 @@ class DataFrame(object):
         from cudf.core.join.join import Merge
         # just for checking purposes, we assign "left" to how if it is "right"
         howToCheck = "left" if how == "right" else how
-        Merge.validate_merge_cfg(lhs=self._cdf,
-                                 rhs=right._cdf,
-                                 on=on,
-                                 left_on=left_on,
-                                 right_on=right_on,
-                                 left_index=left_index,
-                                 right_index=right_index,
-                                 how=howToCheck,
-                                 lsuffix=suffixes[0],
-                                 rsuffix=suffixes[1],
-                                 suffixes=suffixes)
+        # they changed the method name in cudf v0.19 to _validate_merge_params
+        # so, we check the method name and call either one that exists
+        if callable(getattr(Merge, "validate_merge_cfg", None)):
+            Merge.validate_merge_cfg(lhs=self._cdf,
+                                     rhs=right._cdf,
+                                     on=on,
+                                     left_on=left_on,
+                                     right_on=right_on,
+                                     left_index=left_index,
+                                     right_index=right_index,
+                                     how=howToCheck,
+                                     lsuffix=suffixes[0],
+                                     rsuffix=suffixes[1],
+                                     suffixes=suffixes)
+        elif callable(getattr(Merge, "_validate_merge_params", None)):
+            Merge._validate_merge_params(lhs=self._cdf,
+                                         rhs=right._cdf,
+                                         on=on,
+                                         left_on=left_on,
+                                         right_on=right_on,
+                                         left_index=left_index,
+                                         right_index=right_index,
+                                         how=howToCheck,
+                                         suffixes=suffixes)
+        else:
+            print("WARNING: Cannot find merge parameter validation check method")
 
         left_on1, right_on1 = self._get_left_right_on(self._cdf,
                                                       right._cdf,
