@@ -20,9 +20,6 @@ from pygcylon.ex.simple cimport vectorAdd
 from pygcylon.ex.simple cimport vectorCopy
 from pygcylon.ex.simple cimport Rectangle
 
-from cudf._lib.cpp.table.table_view cimport table_view
-from cudf._lib.table cimport Table
-
 def mult(int n, int m):
    return testMult(n, m)
 
@@ -41,16 +38,6 @@ def listCopy(lst):
 def increment(int n):
     cdef int result = n + 1
     return result
-
-def rows(object tbl):
-    cdef Table tb = tbl
-    cdef table_view tv = tb.view()
-    return tv.num_rows()
-
-def cols(object tbl):
-    cdef Table tb = tbl
-    cdef table_view tv = tb.view()
-    return tv.num_columns()
 
 def primes(int nb_primes):
     cdef int n, i, len_p

@@ -133,13 +133,14 @@ library_directories = [
     get_python_lib(),
     os.path.join(os.sys.prefix, "lib")]
 
-libraries = ["gcylon", "cudf", "cylon", "cudart"]
+libraries = ["gcylon", "cudf", "cudart"]
 #libraries = ["gcylon", "cylon", "glog"]
 
 cylon_include_dir = os.path.join(os.environ.get('CYLON_HOME'), "cpp/src/cylon")
 
 _include_dirs = ["../cpp/src/cylon/cudf",
                  cylon_include_dir,
+                 os.path.join(conda_include_dir, "libcudf/libcudacxx"),
                  CUDA['include'],
                  conda_include_dir,
                  np.get_include(),
@@ -148,7 +149,7 @@ _include_dirs = ["../cpp/src/cylon/cudf",
 # Adopted the Cudf Python Build format
 # https://github.com/rapidsai/cudf
 
-cython_files = ["pygcylon/*/*.pyx"]
+cython_files = ["pygcylon/**/*.pyx"]
 
 extensions = [
     Extension(
@@ -178,7 +179,10 @@ setup(
             profile=False, language_level=3, embedsignature=True
         ),
     ),
+    package_data=dict.fromkeys(
+        find_packages(include=["pygcylon*"]), ["*.pxd"],
+    ),
     python_requires='>=3.7',
-    install_requires=["cython", "numpy"],
+    install_requires=["cython", "numpy", "cudf"],
     zip_safe=False,
 )

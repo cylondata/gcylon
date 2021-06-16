@@ -222,7 +222,7 @@ build_python() {
 
   echo "\-ipath|--install_path is NOT set default to cmake"
 #  export LD_LIBRARY_PATH=${BUILD_PATH}/arrow/install/lib:${BUILD_PATH}/lib:$LD_LIBRARY_PATH || exit 1
-  export LD_LIBRARY_PATH=${BUILD_PATH}/lib:$CYLON_HOME/build/lib:${CONDA_PREFIX}/lib:$LD_LIBRARY_PATH || exit 1
+  export LD_LIBRARY_PATH=${BUILD_PATH}/lib:$CYLON_HOME/build/lib:$LD_LIBRARY_PATH:${CONDA_PREFIX}/lib || exit 1
   echo "LD_LIBRARY_PATH="$LD_LIBRARY_PATH
 
   export GCYLON_HOME=${PWD}

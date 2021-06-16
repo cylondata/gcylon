@@ -37,46 +37,20 @@ set_target_properties(gcylon PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
 
 set_property(TARGET gcylon PROPERTY CUDA_SEPARABLE_COMPILATION ON)
 
-target_link_libraries(gcylon ${GLOG_LIBRARIES})
-target_link_libraries(gcylon ${CYLON_DIR}/build/lib/libcylon.so)
 if("$ENV{CONDA_BUILD}" STREQUAL "1")
-    target_link_libraries(gcylon
-            $ENV{BUILD_PREFIX}/lib/libcudf_ast.so
-            $ENV{BUILD_PREFIX}/lib/libcudf_interop.so
-            $ENV{BUILD_PREFIX}/lib/libcudf_partitioning.so
-            $ENV{BUILD_PREFIX}/lib/libcudf_rolling.so
-            $ENV{BUILD_PREFIX}/lib/libcudf_base.so
-            $ENV{BUILD_PREFIX}/lib/libcudf_io.so
-            $ENV{BUILD_PREFIX}/lib/libcudf_reductions.so
-            $ENV{BUILD_PREFIX}/lib/libcudf.so
-            $ENV{BUILD_PREFIX}/lib/libcudf_comms.so
-            $ENV{BUILD_PREFIX}/lib/libcudf_join.so
-            $ENV{BUILD_PREFIX}/lib/libcudf_replace.so
-            $ENV{BUILD_PREFIX}/lib/libcudf_hash.so
-            $ENV{BUILD_PREFIX}/lib/libcudf_merge.so
-            $ENV{BUILD_PREFIX}/lib/libcudf_reshape.so
-            $ENV{BUILD_PREFIX}/lib/libcudf_transpose.so
-            )
+    link_directories($ENV{BUILD_PREFIX}/lib/)
+    link_directories($ENV{BUILD_PREFIX}/lib64/)
 elseif(DEFINED ENV{CONDA_PREFIX})
-    target_link_libraries(gcylon
-        $ENV{CONDA_PREFIX}/lib/libcudf_ast.so
-        $ENV{CONDA_PREFIX}/lib/libcudf_interop.so
-        $ENV{CONDA_PREFIX}/lib/libcudf_partitioning.so
-        $ENV{CONDA_PREFIX}/lib/libcudf_rolling.so
-        $ENV{CONDA_PREFIX}/lib/libcudf_base.so
-        $ENV{CONDA_PREFIX}/lib/libcudf_io.so
-        $ENV{CONDA_PREFIX}/lib/libcudf_reductions.so
-        $ENV{CONDA_PREFIX}/lib/libcudf.so
-        $ENV{CONDA_PREFIX}/lib/libcudf_comms.so
-        $ENV{CONDA_PREFIX}/lib/libcudf_join.so
-        $ENV{CONDA_PREFIX}/lib/libcudf_replace.so
-        $ENV{CONDA_PREFIX}/lib/libcudf_hash.so
-        $ENV{CONDA_PREFIX}/lib/libcudf_merge.so
-        $ENV{CONDA_PREFIX}/lib/libcudf_reshape.so
-        $ENV{CONDA_PREFIX}/lib/libcudf_transpose.so
-        )
+    link_directories($ENV{CONDA_PREFIX}/lib/)
+    link_directories($ENV{CONDA_PREFIX}/lib64/)
 endif("$ENV{CONDA_BUILD}" STREQUAL "1")
-target_link_libraries(gcylon CUDA::cudart)
+
+target_link_libraries(gcylon
+    ${GLOG_LIBRARIES}
+    ${CYLON_DIR}/build/lib/libcylon.so
+    cudf
+    CUDA::cudart
+)
 
 if (WITHOUT_CUDA)
     target_compile_options(gcylon PRIVATE -Werror -Wall -Wextra -Wno-unused-parameter)

@@ -12,23 +12,15 @@
 # limitations under the License.
 ##
 
-import cudf
+from cudf._lib.cpp.table.table_view cimport table_view
+from cudf._lib.table cimport Table
 
-from .net.mpi_config import MPIConfig
-from .frame import (
-     CylonEnv,
-     DataFrame,
-     concat,
-     shuffle,
-)
-from .groupby import (
-     GroupByDataFrame
-)
+def rows(object tbl):
+    cdef Table tb = tbl
+    cdef table_view tv = tb.view()
+    return tv.num_rows()
 
-from ._version import get_versions
-__version__ = get_versions()['version']
-del get_versions
-
-# cudf may be deleted, done in dask-cudf __init__.py file
-# not sure whether we should do that
-#del cudf
+def cols(object tbl):
+    cdef Table tb = tbl
+    cdef table_view tv = tb.view()
+    return tv.num_columns()

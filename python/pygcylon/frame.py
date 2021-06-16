@@ -2,7 +2,7 @@ from __future__ import annotations
 from typing import Hashable, List, Tuple, Dict, Optional, Sequence, Union, Iterable
 import cudf
 import numpy as np
-from pygcylon.data.table import shuffle as tshuffle
+from pygcylon.data.shuffle import shuffle as tshuffle
 from pygcylon.ctx.context import CylonContext
 from pygcylon.groupby import GroupByDataFrame
 
@@ -104,6 +104,9 @@ class DataFrame(object):
 
     def __sizeof__(self):
         return self._cdf.__sizeof__()
+
+    def __del__(self):
+        del self._cdf
 
     @staticmethod
     def from_cudf(cdf) -> DataFrame:
@@ -304,20 +307,18 @@ class DataFrame(object):
                                         method=algorithm)
             return DataFrame.from_cudf(merged_df)
 
-        from cudf.core.join import Merge
+        from cudf.core.join.join import Merge
         # just for checking purposes, we assign "left" to how if it is "right"
         howToCheck = "left" if how == "right" else how
-        Merge.validate_merge_cfg(lhs=self._cdf,
-                                 rhs=right._cdf,
-                                 on=on,
-                                 left_on=left_on,
-                                 right_on=right_on,
-                                 left_index=left_index,
-                                 right_index=right_index,
-                                 how=howToCheck,
-                                 lsuffix=suffixes[0],
-                                 rsuffix=suffixes[1],
-                                 suffixes=suffixes)
+        Merge._validate_merge_params(lhs=self._cdf,
+                                     rhs=right._cdf,
+                                     on=on,
+                                     left_on=left_on,
+                                     right_on=right_on,
+                                     left_index=left_index,
+                                     right_index=right_index,
+                                     how=howToCheck,
+                                     suffixes=suffixes)
 
         left_on1, right_on1 = self._get_left_right_on(self._cdf,
                                                       right._cdf,

@@ -154,8 +154,6 @@ cylon::Status Shuffle(const cudf::table_view & inputTable,
 
     std::pair<std::unique_ptr<cudf::table>, std::vector<cudf::size_type>> partitioned
             = cudf::hash_partition(inputTable, columns_to_hash, ctx->GetWorldSize());
-    // todo: not sure whether this is needed
-    cudaDeviceSynchronize();
 
     RETURN_CYLON_STATUS_IF_FAILED(
             all_to_all_cudf_table(ctx, partitioned.first, partitioned.second, table_out));
@@ -192,34 +190,26 @@ cylon::Status joinTables(const cudf::table_view & left,
         return cylon::Status(cylon::Code::NotImplemented, "SORT join is not supported on GPUs yet.");
     }
 
-    // todo: should joined columns repeat on the joined table or not?
-    // todo: should null values match?
-    std::vector<std::pair<cudf::size_type, cudf::size_type>> columns_in_common{};
-
     if(join_config.GetType() == cylon::join::config::JoinType::INNER) {
        table_out = cudf::inner_join(left,
                                     right,
                                     join_config.GetLeftColumnIdx(),
-                                    join_config.GetRightColumnIdx(),
-                                    columns_in_common);
+                                    join_config.GetRightColumnIdx());
     } else if (join_config.GetType() == cylon::join::config::JoinType::LEFT) {
         table_out = cudf::left_join(left,
                                     right,
                                     join_config.GetLeftColumnIdx(),
-                                    join_config.GetRightColumnIdx(),
-                                    columns_in_common);
+                                    join_config.GetRightColumnIdx());
     } else if (join_config.GetType() == cylon::join::config::JoinType::RIGHT) {
         table_out = cudf::left_join(right,
                                     left,
                                     join_config.GetRightColumnIdx(),
-                                    join_config.GetLeftColumnIdx(),
-                                    columns_in_common);
+                                    join_config.GetLeftColumnIdx());
     } else if (join_config.GetType() == cylon::join::config::JoinType::FULL_OUTER) {
         table_out = cudf::full_join(left,
                                     right,
                                     join_config.GetLeftColumnIdx(),
-                                    join_config.GetRightColumnIdx(),
-                                    columns_in_common);
+                                    join_config.GetRightColumnIdx());
     }
 
     return cylon::Status::OK();
