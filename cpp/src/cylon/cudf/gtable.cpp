@@ -190,34 +190,26 @@ cylon::Status joinTables(const cudf::table_view & left,
         return cylon::Status(cylon::Code::NotImplemented, "SORT join is not supported on GPUs yet.");
     }
 
-    // todo: should joined columns repeat on the joined table or not?
-    // todo: should null values match?
-    std::vector<std::pair<cudf::size_type, cudf::size_type>> columns_in_common{};
-
     if(join_config.GetType() == cylon::join::config::JoinType::INNER) {
        table_out = cudf::inner_join(left,
                                     right,
                                     join_config.GetLeftColumnIdx(),
-                                    join_config.GetRightColumnIdx(),
-                                    columns_in_common);
+                                    join_config.GetRightColumnIdx());
     } else if (join_config.GetType() == cylon::join::config::JoinType::LEFT) {
         table_out = cudf::left_join(left,
                                     right,
                                     join_config.GetLeftColumnIdx(),
-                                    join_config.GetRightColumnIdx(),
-                                    columns_in_common);
+                                    join_config.GetRightColumnIdx());
     } else if (join_config.GetType() == cylon::join::config::JoinType::RIGHT) {
         table_out = cudf::left_join(right,
                                     left,
                                     join_config.GetRightColumnIdx(),
-                                    join_config.GetLeftColumnIdx(),
-                                    columns_in_common);
+                                    join_config.GetLeftColumnIdx());
     } else if (join_config.GetType() == cylon::join::config::JoinType::FULL_OUTER) {
         table_out = cudf::full_join(left,
                                     right,
                                     join_config.GetLeftColumnIdx(),
-                                    join_config.GetRightColumnIdx(),
-                                    columns_in_common);
+                                    join_config.GetRightColumnIdx());
     }
 
     return cylon::Status::OK();
