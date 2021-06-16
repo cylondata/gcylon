@@ -25,7 +25,7 @@ def dist_merge():
 
 #####################################################
 # local join test
-local_merge()
+# local_merge()
 
 # distributed join
-# dist_merge()
+dist_merge()
