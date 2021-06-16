@@ -12,17 +12,23 @@
 # limitations under the License.
 ##
 
-from pygcylon.net.mpi_config import MPIConfig
-from pygcylon.frame import (
-    CylonEnv,
-    DataFrame,
-    concat,
-    shuffle,
+import cudf
+
+from .net.mpi_config import MPIConfig
+from .frame import (
+     CylonEnv,
+     DataFrame,
+     concat,
+     shuffle,
 )
-from pygcylon.groupby import (
-    GroupByDataFrame
+from .groupby import (
+     GroupByDataFrame
 )
 
 from ._version import get_versions
 __version__ = get_versions()['version']
 del get_versions
+
+# cudf may be deleted, done in dask-cudf __init__.py file
+# not sure whether we should do that
+#del cudf
