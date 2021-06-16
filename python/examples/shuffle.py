@@ -15,3 +15,4 @@ shuffledDF = gc.frame.shuffle(df.to_cudf(), hash_columns, env)
 print("shuffled df from rank: ", env.rank, "\n", shuffledDF)
 
 env.finalize()
+print("after finalize from the rank:", env.rank)
