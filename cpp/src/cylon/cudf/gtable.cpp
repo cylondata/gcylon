@@ -154,8 +154,6 @@ cylon::Status Shuffle(const cudf::table_view & inputTable,
 
     std::pair<std::unique_ptr<cudf::table>, std::vector<cudf::size_type>> partitioned
             = cudf::hash_partition(inputTable, columns_to_hash, ctx->GetWorldSize());
-    // todo: not sure whether this is needed
-    cudaDeviceSynchronize();
 
     RETURN_CYLON_STATUS_IF_FAILED(
             all_to_all_cudf_table(ctx, partitioned.first, partitioned.second, table_out));
