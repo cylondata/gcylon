@@ -15,9 +15,8 @@
 from cudf._lib.cpp.table.table_view cimport table_view
 from cudf._lib.table cimport Table
 
-def rows(object tbl):
-    cdef Table tb = tbl
-    cdef table_view tv = tb.view()
+def rows(Table tbl):
+    cdef table_view tv = tbl.view()
     return tv.num_rows()
 
 def cols(object tbl):
