@@ -5,10 +5,10 @@ channels:
   - conda-forge
   - defaults
 dependencies:
-  - python=3.7
+  - python=3.8
   - cmake >=3.17
-  - cudatoolkit=10.1
-  - cudf=0.19
+  - cudatoolkit=11.2
+  - cudf >=21.08
   - glog=0.4.0
   - conda-build >=3.21
   - cython >=0.29,<0.30
