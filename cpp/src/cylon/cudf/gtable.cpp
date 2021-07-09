@@ -86,7 +86,9 @@ std::unique_ptr<cudf::table> createEmptyTable(const cudf::table_view & tv) {
 
     std::vector<std::unique_ptr<cudf::column>> columnVector{};
     for (int i=0; i < tv.num_columns(); i++) {
-        auto column = std::make_unique<cudf::column>(tv.column(i).type(), 0, rmm::device_buffer{0});
+        auto column = std::make_unique<cudf::column>(tv.column(i).type(),
+                                                     0,
+                                                     rmm::device_buffer{0, rmm::cuda_stream_default});
         columnVector.push_back(std::move(column));
     }
 

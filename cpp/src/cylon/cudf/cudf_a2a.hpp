@@ -98,7 +98,7 @@ private:
     std::vector<cudf::size_type> partCharOffsets;
 
     // this is to prevent std::shared_ptr<rmm::device_buffer> to be deleted before they are sent out
-    std::unordered_map<int, rmm::device_buffer> maskBuffers{};
+    std::unordered_map<long unsigned int, rmm::device_buffer> maskBuffers{};
 };
 
 /**
