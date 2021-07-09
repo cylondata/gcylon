@@ -92,8 +92,9 @@ void printFirstLastElements(cudf::table_view &tv) {
         LOG(INFO) << myRank << ", column[" << i << "], size: " << cw.size() << ", data type: " << static_cast<int>(cw.type().id());
         if (cw.type().id() == cudf::type_id::STRING) {
             cudf::strings_column_view scv(cw);
-            cudf::strings::print(scv, 0, 1);
-            cudf::strings::print(scv, cw.size()-1, cw.size());
+            LOG(ERROR) << "!!!!!!!!!!!!!!!!!!!!!!!! sorry they removed the method cudf::strings::print.";
+//            cudf::strings::print(scv, 0, 1);
+//            cudf::strings::print(scv, cw.size()-1, cw.size());
         } else {
             int dl = dataLength(cw);
             uint8_t *hostArray= new uint8_t[dl];

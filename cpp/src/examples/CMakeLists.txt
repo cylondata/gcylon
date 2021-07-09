@@ -14,5 +14,5 @@ endmacro(cylon_add_exe)
 
 cylon_add_exe(cudf_test)
 cylon_add_exe(a2a_cudf_test)
-cylon_add_exe(shuffle_test)
+cylon_add_exe(shuffle_perf)
 cylon_add_exe(join_test)

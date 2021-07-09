@@ -81,7 +81,7 @@ std::shared_ptr<rmm::device_buffer> CudfBuffer::getBuf() const {
 //////////////////////////////////////////////////////////////////////
 cylon::Status CudfAllocator::Allocate(int64_t length, std::shared_ptr<cylon::Buffer> *buffer) {
   try {
-    auto rmmBuf = std::make_shared<rmm::device_buffer>(length);
+    auto rmmBuf = std::make_shared<rmm::device_buffer>(length, rmm::cuda_stream_default);
     *buffer = std::make_shared<CudfBuffer>(rmmBuf);
     return cylon::Status::OK();
   } catch (rmm::bad_alloc * badAlloc) {
@@ -167,7 +167,7 @@ PartColumnView::PartColumnView(const cudf::column_view &cv, const std::vector<cu
     if (cv.nullable()) {
         for (long unsigned int i = 0; i < partIndexes.size() -1; ++i) {
             auto maskBuf = cudf::copy_bitmask(cv.null_mask(), partIndexes[i], partIndexes[i+1]);
-            maskBuffers.insert(std::make_pair(i, maskBuf));
+            maskBuffers.emplace(std::make_pair(i, std::move(maskBuf)));
         }
         rmm::cuda_stream_default.synchronize();
     }
@@ -518,16 +518,19 @@ void CudfAllToAll::constructColumn(std::shared_ptr<PendingReceives> pr) {
 
     if (dt.id() != cudf::type_id::STRING)  {
         if(pr->hasNullBuffer) {
-            column = std::make_unique<cudf::column>(dt, pr->dataSize, *dataBuffer, *nullBuffer);
+            column = std::make_unique<cudf::column>(dt,
+                                                    pr->dataSize,
+                                                    std::move(*dataBuffer),
+                                                    std::move(*nullBuffer));
         } else {
-            column = std::make_unique<cudf::column>(dt, pr->dataSize, *dataBuffer);
+            column = std::make_unique<cudf::column>(dt, pr->dataSize, std::move(*dataBuffer));
         }
 
     // construct string column
     } else {
         // construct chars child column
         auto cdt = cudf::data_type{cudf::type_id::INT8};
-        auto charsColumn = std::make_unique<cudf::column>(cdt, pr->dataBufferLen, *dataBuffer);
+        auto charsColumn = std::make_unique<cudf::column>(cdt, pr->dataBufferLen, std::move(*dataBuffer));
 
         int32_t offBase = getScalar<int32_t>((uint8_t *)offsetsBuffer->data());
         // todo: can offsets start from non zero values in non-partitioned tables
@@ -537,7 +540,7 @@ void CudfAllToAll::constructColumn(std::shared_ptr<PendingReceives> pr) {
         }
 
         auto odt = cudf::data_type{cudf::type_id::INT32};
-        auto offsetsColumn = std::make_unique<cudf::column>(odt, pr->dataSize + 1, *offsetsBuffer);
+        auto offsetsColumn = std::make_unique<cudf::column>(odt, pr->dataSize + 1, std::move(*offsetsBuffer));
 
         // this creates a new buffer, so less efficient
         // int32_t offsetBase = getScalar<int32_t>((uint8_t *)offsetsBuffer->data());
@@ -553,17 +556,18 @@ void CudfAllToAll::constructColumn(std::shared_ptr<PendingReceives> pr) {
         children.emplace_back(std::move(charsColumn));
 
         if (pr->hasNullBuffer) {
+            rmm::device_buffer rmmBuf{0, rmm::cuda_stream_default, rmm::mr::get_current_device_resource()};
             column = std::make_unique<cudf::column>(cudf::data_type{cudf::type_id::STRING},
                                                     pr->dataSize,
-                                                    rmm::device_buffer{0},
-                                                    *nullBuffer,
+                                                    std::move(rmmBuf),
+                                                    std::move(*nullBuffer),
                                                     cudf::UNKNOWN_NULL_COUNT,
                                                     std::move(children));
         } else{
             column = std::make_unique<cudf::column>(cudf::data_type{cudf::type_id::STRING},
                                                     pr->dataSize,
-                                                    rmm::device_buffer{0},
-                                                    rmm::device_buffer{0},
+                                                    std::move(rmm::device_buffer{0, rmm::cuda_stream_default}),
+                                                    std::move(rmm::device_buffer{0, rmm::cuda_stream_default}),
                                                     0,
                                                     std::move(children));
         }

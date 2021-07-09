@@ -28,6 +28,7 @@ import versioneer
 from Cython.Build import cythonize
 from setuptools import find_packages, setup
 from setuptools.extension import Extension
+from setuptools.command.build_ext import build_ext
 from distutils.sysconfig import get_python_lib
 
 version = versioneer.get_version(),
@@ -82,6 +83,12 @@ def locate_cuda():
 
 # os.environ["CXX"] = "mpic++"
 
+class BuildExt(build_ext):
+    def build_extensions(self):
+        if '-Wstrict-prototypes' in self.compiler.compiler_so:
+            self.compiler.compiler_so.remove('-Wstrict-prototypes')
+        super().build_extensions()
+
 try:
     nthreads = int(os.environ.get("PARALLEL_LEVEL", "0") or "0")
 except Exception:
@@ -100,7 +107,7 @@ extra_compile_args = os.popen("mpic++ --showme:compile").read().strip().split(' 
 extra_link_args = os.popen("mpic++ --showme:link").read().strip().split(' ')
 extra_compile_args = extra_compile_args + extra_link_args + additional_compile_args
 #  extra_compile_args = additional_compile_args
-extra_link_args.append("-Wl,-rpath")
+# extra_link_args.append("-Wl,-rpath")
 
 #glob_library_directory = os.path.join(CYLON_PREFIX, "glog", "install", "lib")
 
@@ -120,6 +127,8 @@ elif "CONDA_BUILD" in os.environ:
 
 CUDA = locate_cuda()
 
+conda_include_cudf = os.path.join(conda_include_dir, "cudf")
+
 print("gcylon_library_directory: ", gcylon_library_directory)
 print("cylon_library_directory: ", cylon_library_directory)
 print("conda_library_directory: ", conda_lib_dir)
@@ -128,8 +137,8 @@ print("cuda_library_directory: ", CUDA['lib64'])
 library_directories = [
     gcylon_library_directory,
     cylon_library_directory,
-    CUDA['lib64'],
     conda_lib_dir,
+    CUDA['lib64'],
     get_python_lib(),
     os.path.join(os.sys.prefix, "lib")]
 
@@ -140,11 +149,11 @@ cylon_include_dir = os.path.join(os.environ.get('CYLON_HOME'), "cpp/src/cylon")
 
 _include_dirs = ["../cpp/src/cylon/cudf",
                  cylon_include_dir,
+                 conda_include_dir,
+                 conda_include_cudf,
                  os.path.join(conda_include_dir, "libcudf/libcudacxx"),
                  CUDA['include'],
-                 conda_include_dir,
-                 np.get_include(),
-                 os.path.dirname(sysconfig.get_path("include"))]
+                 np.get_include()]
 
 # Adopted the Cudf Python Build format
 # https://github.com/rapidsai/cudf
@@ -164,7 +173,6 @@ extensions = [
     )
 ]
 
-compiler_directives = {"language_level": 3, "embedsignature": True}
 packages = find_packages(include=["pygcylon", "pygcylon.*"])
 
 setup(

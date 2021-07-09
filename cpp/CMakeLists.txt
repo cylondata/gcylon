@@ -61,7 +61,8 @@ set("GCYLON_SIMD_LEVEL" "SSE4_2") # options: SSE4_2| AVX512 | AVX2
 set(CMAKE_CUDA_ARCHITECTURES 60 61 75)
 
 # C++ standard
-SET(CMAKE_CXX_STANDARD 14)
+# with cudf v21.08, at least c++ 17 required
+SET(CMAKE_CXX_STANDARD 17)
 SET(CMAKE_CXX_STANDARD_REQUIRED ON)
 SET(CMAKE_CXX_EXTENSIONS OFF)
 SET(CMAKE_REQUIRED_FLAGS "-std=c++17")
@@ -89,7 +90,6 @@ if("$ENV{CONDA_BUILD}" STREQUAL "1")
 
 # if build.sh is used without conda build
 elseif(DEFINED ENV{CONDA_PREFIX})
-    set(CUDAToolkit_DIR "/usr/local/cuda-10.1")
     set(CMAKE_SYSTEM_PREFIX_PATH "$ENV{CONDA_PREFIX};${CMAKE_SYSTEM_PREFIX_PATH}")
     set(CONDA_INCLUDE_DIRS "$ENV{CONDA_PREFIX}/include")
     set(CMAKE_INSTALL_INCLUDEDIR "$ENV{BUILD_PREFIX}/include")
@@ -130,9 +130,6 @@ include_directories(
         ${CONDA_INCLUDE_DIRS}
         ${CUDF_INCLUDE_DIR}
 )
-
-
-# include(Build)
 
 add_subdirectory(src/cylon)
 add_subdirectory(src/examples)

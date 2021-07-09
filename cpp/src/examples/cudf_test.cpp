@@ -21,18 +21,18 @@ using namespace gcylon;
 
 std::unique_ptr<cudf::column> emptyLike(cudf::column_view const& input){
     int dl = dataLength(input);
-    rmm::device_buffer dataBuf(dl);
+    rmm::device_buffer dataBuf(dl, rmm::cuda_stream_default);
     cudaMemcpy(dataBuf.data(), input.data<uint8_t>(), dl, cudaMemcpyDeviceToDevice);
 
     int nullBufSize = ceil(input.size() / 8.0);
     if (!input.nullable()) {
         nullBufSize = 0;
     }
-    rmm::device_buffer nullBuf(nullBufSize);
+    rmm::device_buffer nullBuf(nullBufSize, rmm::cuda_stream_default);
     cudaMemcpy(nullBuf.data(), input.null_mask(), nullBufSize, cudaMemcpyDeviceToDevice);
 
     return std::make_unique<cudf::column>(
-            input.type(), input.size(), dataBuf, nullBuf, input.null_count());
+            input.type(), input.size(), std::move(dataBuf), std::move(nullBuf), input.null_count());
 }
 
 void testEmptyLike(cudf::column_view const& input) {

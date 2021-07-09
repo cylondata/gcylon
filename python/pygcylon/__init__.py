@@ -29,6 +29,5 @@ from ._version import get_versions
 __version__ = get_versions()['version']
 del get_versions
 
-# cudf may be deleted, done in dask-cudf __init__.py file
-# not sure whether we should do that
-#del cudf
+# delete cudf, as is done in dask-cudf __init__.py file
+del cudf
