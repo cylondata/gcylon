@@ -19,7 +19,8 @@ inline void printColumn(cudf::column_view const& input, int columnIndex, int sta
     cout << "column[" << columnIndex << "]:  ";
     if (input.type().id() == cudf::type_id::STRING) {
         cudf::strings_column_view scv(input);
-        cudf::strings::print(scv);
+        cout << "Can't print string column :(((( " << endl;
+//        cudf::strings::print(scv);
 //        printStringColumnA(input, columnIndex);
         return;
     }
