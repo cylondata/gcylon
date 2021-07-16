@@ -1,7 +1,7 @@
 //
 // Created by auyar on 3.02.2021.
 //
-#include "cudf_a2a.cuh"
+#include "cudf_all_to_all.cuh"
 
 namespace gcylon {
 

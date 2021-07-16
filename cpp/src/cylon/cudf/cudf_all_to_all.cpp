@@ -2,10 +2,10 @@
 // Created by auyar on 3.02.2021.
 //
 
-#include "cudf_a2a.hpp"
+#include "cudf_all_to_all.hpp"
 #include "gtable.hpp"
 #include "util.hpp"
-#include "cudf_a2a.cuh"
+#include "cudf_all_to_all.cuh"
 
 #include <glog/logging.h>
 #include <net/mpi/mpi_communicator.hpp>

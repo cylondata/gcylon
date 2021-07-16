@@ -4,7 +4,7 @@
 #ifndef CYLON_GTABLE_H
 #define CYLON_GTABLE_H
 
-#include "cudf_a2a.hpp"
+#include "cudf_all_to_all.hpp"
 #include <join/join_config.hpp>
 #include <cudf/io/types.hpp>
 
