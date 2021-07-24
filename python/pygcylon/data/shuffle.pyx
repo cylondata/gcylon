@@ -25,21 +25,22 @@ from cudf._lib.cpp.table.table_view cimport table_view
 from cudf._lib.cpp.table.table cimport table
 from cudf._lib.table cimport Table
 
-def shuffle(object tbl, hash_columns, context):
+def shuffle(object tbl, hash_columns, ignore_index, context):
     cdef CStatus status
     cdef Table inputTable = tbl
-    cdef table_view inputTview = inputTable.view()
     cdef unique_ptr[table] output
     cdef vector[int] c_hash_columns
     cdef Table outputTable
     cdef shared_ptr[CCylonContext] c_ctx_ptr = pycylon_unwrap_context(context)
+    cdef table_view inputTview = inputTable.data_view() if ignore_index else inputTable.view()
 
     if hash_columns:
         c_hash_columns = hash_columns
 
         status = Shuffle(inputTview, c_hash_columns, c_ctx_ptr, output)
         if status.is_ok():
-            outputTable = Table.from_unique_ptr(move(output), inputTable._column_names, index_names=inputTable._index_names)
+            index_names = None if ignore_index else inputTable._index_names
+            outputTable = Table.from_unique_ptr(move(output), inputTable._column_names, index_names=index_names)
             return outputTable
         else:
             raise ValueError(f"Shuffle operation failed : {status.get_msg().decode()}")

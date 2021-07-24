@@ -2,7 +2,7 @@ from __future__ import annotations
 from typing import Hashable, List, Tuple, Dict, Optional, Sequence, Union, Iterable
 import cudf
 import numpy as np
-from pygcylon.data.shuffle import shuffle as tshuffle
+from pygcylon.data.shuffle import shuffle as cshuffle
 from pygcylon.ctx.context import CylonContext
 from pygcylon.groupby import GroupByDataFrame
 
@@ -169,10 +169,10 @@ class DataFrame(object):
 
         # shuffle dataframes on index columns
         hash_columns = [*range(self._cdf._num_indices)]
-        shuffled_left = shuffle(self._cdf, hash_columns, env)
+        shuffled_left = _shuffle(self._cdf, hash_columns=hash_columns, env=env)
 
         hash_columns = [*range(other._cdf._num_indices)]
-        shuffled_right = shuffle(other._cdf, hash_columns, env)
+        shuffled_right = _shuffle(other._cdf, hash_columns=hash_columns, env=env)
 
         joined_df = shuffled_left.join(shuffled_right,
                                        on=on,
@@ -294,7 +294,7 @@ class DataFrame(object):
                 "Only indicator=False is currently supported"
             )
 
-        if env is None:
+        if env is None or env.world_size == 1:
             merged_df = self._cdf.merge(right=right._cdf,
                                         on=on,
                                         left_on=left_on,
@@ -334,8 +334,8 @@ class DataFrame(object):
                                                                       left_index,
                                                                       right_index)
 
-        shuffled_left = shuffle(self._cdf, left_on_ind, env)
-        shuffled_right = shuffle(right._cdf, right_on_ind, env)
+        shuffled_left = _shuffle(self._cdf, hash_columns=left_on_ind, env=env)
+        shuffled_right = _shuffle(right._cdf, hash_columns=right_on_ind, env=env)
 
         merged_df = shuffled_left.merge(right=shuffled_right,
                                         on=on,
@@ -541,7 +541,7 @@ class DataFrame(object):
         for name in subset:
             shuffle_column_indices.append(self._cdf._num_indices + self._cdf._column_names.index(name))
 
-        shuffled_df = shuffle(self._cdf, shuffle_column_indices, env)
+        shuffled_df = _shuffle(self._cdf, hash_columns=shuffle_column_indices, env=env)
 
         dropped_df = shuffled_df.drop_duplicates(subset=subset, keep=keep, inplace=inplace, ignore_index=ignore_index)
         return DataFrame.from_cudf(shuffled_df) if inplace else DataFrame.from_cudf(dropped_df)
@@ -853,8 +853,8 @@ class DataFrame(object):
         df1_hash_columns = [df1._num_indices + df1.columns.to_list().index(cname) for cname in subset]
         df2_hash_columns = [df2._num_indices + df2.columns.to_list().index(cname) for cname in subset]
 
-        shuffled_df1 = shuffle(df1, df1_hash_columns, env)
-        shuffled_df2 = shuffle(df2, df2_hash_columns, env)
+        shuffled_df1 = _shuffle(df1, hash_columns=df1_hash_columns, env=env)
+        shuffled_df2 = _shuffle(df2, hash_columns=df2_hash_columns, env=env)
 
         return DataFrame._set_diff(df1=shuffled_df1, df2=shuffled_df2, subset=subset)
 
@@ -984,13 +984,47 @@ class DataFrame(object):
                           sort=False,
                           env=env)
 
-    # for distributed groupby, do we shuffle the whole table or just the grouped-by columns?
-    # just the grouping colmns and value cols
+    # todo: need to add shuffling on index columns
+    # todo: add examples to the docs section
+    def shuffle(self, on, ignore_index=False, env: CylonEnv = None) -> DataFrame:
+        """
+        Shuffle the distributed DataFrame by partitioning 'on' columns.
+        It is an error to call this method on a DataFrame with a single cudf DataFrame.
 
-    # getting column names from parameters
-    # names include index column names if level is specified by the parameter
-    # cudf.core.groupby.groupby._Grouping
-    # "names" parameter of this object
+        Parameters
+        ----------
+        on: shuffling column name or names as a list
+        ignore_index: ignore index when shuffling if True
+        env: CylonEnv object for this DataFrame
+
+        Returns
+        -------
+        A new distributed DataFrame constructed by shuffling the DataFrame
+        """
+        if env is None or env.world_size == 1:
+            raise ValueError(f"Not a distributed DataFrame. No shuffling for local DataFrames.")
+
+        # make sure 'on' columns exist among data columns
+        if (
+            not np.iterable(on)
+            or isinstance(on, str)
+            or isinstance(on, tuple)
+            and on in self._cdf._data.names
+        ):
+            on = (on,)
+        diff = set(on) - set(self._cdf._data)
+        if len(diff) != 0:
+            raise ValueError(f"columns {diff} do not exist")
+
+        # get indices of 'on' columns
+        index_columns = 0 if ignore_index else self._cdf._num_indices
+        shuffle_column_indices = []
+        for name in on:
+            shuffle_column_indices.append(index_columns + self._cdf._column_names.index(name))
+
+        shuffled_df = _shuffle(self._cdf, hash_columns=shuffle_column_indices, env=env, ignore_index=ignore_index)
+        return DataFrame.from_cudf(shuffled_df)
+
     def groupby(
         self,
         by=None,
@@ -1328,13 +1362,19 @@ def concat(
     return DataFrame.from_cudf(concated_df)
 
 
-def shuffle(df: cudf.DataFrame, hash_columns, env: CylonEnv = None) -> cudf.DataFrame:
+def _shuffle(df: cudf.DataFrame, hash_columns, env: CylonEnv = None, ignore_index=False) -> cudf.DataFrame:
     """
     Perform shuffle on a distributed dataframe
-    :param df: local DataFrame object
+    :param df: local cudf DataFrame object
     :param hash_columns: column indices to partition the table
     :param env: CylonEnv
+    :ignore_index: ignore index when shuffling
     :return: shuffled dataframe as a new object
     """
-    tbl = tshuffle(df, hash_columns, env.context)
+    if env is None:
+        raise ValueError("No CylonEnv is given.")
+    if env.world_size == 1:
+        raise ValueError(f"Not a distributed DataFrame. No shuffling for local DataFrames.")
+
+    tbl = cshuffle(df, hash_columns=hash_columns, ignore_index=ignore_index, context=env.context)
     return cudf.DataFrame._from_table(tbl)
