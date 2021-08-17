@@ -1,9 +1,8 @@
 #!/bin/bash
 
 SOURCE_DIR=$(pwd)/cpp
-CPP_BUILD="OFF"
-CYTHON_BUILD="OFF"
 CONDA_CPP_BUILD="OFF"
+CYTHON_BUILD="OFF"
 CONDA_CYTHON_BUILD="OFF"
 JAVA_BUILD="OFF"
 BUILD_ALL="OFF"
@@ -15,7 +14,7 @@ PYTHON_RELEASE="OFF"
 RUN_CPP_TESTS="OFF"
 RUN_PYTHON_TESTS="OFF"
 STYLE_CHECK="OFF"
-INSTALL_PATH=$(pwd)/build
+INSTALL_PATH=
 BUILD_PATH=$(pwd)/build
 CMAKE_FLAGS=""
 
@@ -37,7 +36,7 @@ case $key in
     shift # past value
     ;;
     --cpp)
-    CPP_BUILD="ON"
+    CONDA_CPP_BUILD="ON"
     shift # past argument
     ;;
     --conda_cpp)
@@ -100,9 +99,8 @@ set -- "${POSITIONAL[@]}" # restore positional parameters
 
 echo "PYTHON ENV PATH       = ${PYTHON_ENV_PATH}"
 echo "BUILD PATH            = ${BUILD_PATH}"
-echo "CPP BUILD             = ${CPP_BUILD}"
-echo "CYTHON BUILD          = ${CYTHON_BUILD}"
 echo "CONDA CPP BUILD       = ${CONDA_CPP_BUILD}"
+echo "CYTHON BUILD          = ${CYTHON_BUILD}"
 echo "CONDA CYTHON BUILD    = ${CONDA_CYTHON_BUILD}"
 echo "BUILD ALL             = ${BUILD_ALL}"
 echo "BUILD DEBUG           = ${BUILD_MODE_DEBUG}"
@@ -149,45 +147,28 @@ else
   echo "Install location set to: ${INSTALL_PATH}"
 fi
 
-build_cpp(){
-  print_line
-  echo "Building CPP in ${BUILD_MODE} mode"
-  print_line
-  CPPLINT_CMD=" "
-  if [ "${STYLE_CHECK}" = "ON" ]; then
-    CPPLINT_CMD=${CPPLINT_COMMAND}
-  fi
-  mkdir ${BUILD_PATH}
-  pushd ${BUILD_PATH} || exit 1
-  cmake -DPYCYLON_BUILD=${CYTHON_BUILD} -DPYTHON_EXEC_PATH=${PYTHON_ENV_PATH} \
-      -DCMAKE_BUILD_TYPE=${BUILD_MODE} -DCYLON_WITH_TEST=${RUN_CPP_TESTS} $CPPLINT_CMD $INSTALL_CMD \
-      ${CMAKE_FLAGS} \
-      ${SOURCE_DIR} || exit 1
-  make -j 4 || exit 1
-  printf "Cylon CPP Built Successufully!"
-  popd || exit 1
-  print_line
-}
-
 build_cpp_conda(){
   print_line
   echo "Building Conda CPP in ${BUILD_MODE} mode"
   print_line
 
+  # set install path to conda dir if it is not already set
+  INSTALL_PATH=${INSTALL_PATH:=${PREFIX:=${CONDA_PREFIX}}}
+
   echo "SOURCE_DIR: ${SOURCE_DIR}"
+  BUILD_PATH=$(pwd)/build
   mkdir -p ${BUILD_PATH}
   pushd ${BUILD_PATH} || exit 1
-  # clear all files in the build directory
-  rm -rf ./*
 
   cmake -DPYCYLON_BUILD=${CYTHON_BUILD} -DPYTHON_EXEC_PATH=${PYTHON_ENV_PATH} \
-      -DCMAKE_BUILD_TYPE=${BUILD_MODE} -DCYLON_WITH_TEST=${RUN_CPP_TESTS} $INSTALL_CMD \
+      -DCMAKE_BUILD_TYPE=${BUILD_MODE} -DCYLON_WITH_TEST=${RUN_CPP_TESTS} -DCMAKE_INSTALL_PREFIX=${INSTALL_PATH} \
       ${CMAKE_FLAGS} \
       ${SOURCE_DIR} \
       || exit 1
   make -j 4 || exit 1
-  make install || exit 1
   printf "Cylon CPP Built Successfully!"
+  make install || exit 1
+  printf "Cylon Installed Successfully!"
   popd || exit 1
   print_line
 }
@@ -300,10 +281,6 @@ fi
 
 if [ "${BUILD_MODE_RELEASE}" = "ON" ]; then
    	BUILD_MODE=Release	
-fi
-
-if [ "${CPP_BUILD}" = "ON" ]; then
-   	build_cpp
 fi
 
 if [ "${CONDA_CPP_BUILD}" = "ON" ]; then

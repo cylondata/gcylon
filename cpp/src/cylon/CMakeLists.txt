@@ -20,10 +20,10 @@
 # set_source_files_properties(util/murmur3.cpp util/murmur3.hpp PROPERTIES COMPILE_FLAGS -Wno-implicit-fallthrough)
 
 add_library(gcylon SHARED
-        cudf/cudf_a2a.cuh
-        cudf/cudf_a2a.cu
-        cudf/cudf_a2a.hpp
-        cudf/cudf_a2a.cpp
+        cudf/cudf_all_to_all.cuh
+        cudf/cudf_all_to_all.cu
+        cudf/cudf_all_to_all.hpp
+        cudf/cudf_all_to_all.cpp
         cudf/util.hpp
         cudf/gtable.hpp
         cudf/gtable.cpp

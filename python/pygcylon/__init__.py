@@ -16,10 +16,9 @@ import cudf
 
 from .net.mpi_config import MPIConfig
 from .frame import (
-     CylonEnv,
-     DataFrame,
-     concat,
-     shuffle,
+    CylonEnv,
+    DataFrame,
+    concat,
 )
 from .groupby import (
      GroupByDataFrame

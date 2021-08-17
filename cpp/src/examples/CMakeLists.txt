@@ -9,7 +9,7 @@ find_package(CUDAToolkit REQUIRED)
 macro(cylon_add_exe EXENAME)
     add_executable(${EXENAME} ${EXENAME}.cpp)
     target_link_libraries(${EXENAME} gcylon)
-    install(TARGETS ${EXENAME} RUNTIME DESTINATION examples)
+    install(TARGETS ${EXENAME} RUNTIME DESTINATION gcylon/examples)
 endmacro(cylon_add_exe)
 
 cylon_add_exe(cudf_test)

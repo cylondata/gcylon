@@ -1,0 +1,28 @@
+name: Compile and Test on Conda
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-20.04
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: Set up Python 3.8
+      uses: actions/setup-python@v2
+      with:
+        python-version: 3.8
+    - name: Installing Conda Packages
+      run: |
+        # $CONDA is an environment variable pointing to the root of the miniconda directory
+        $CONDA/bin/conda env update --file conda/envs/gcylon2.yml --name base
+    - name: Test conda
+      run: |
+        # $CONDA is an environment variable pointing to the root of the miniconda directory
+        echo "conda-prefix" $CONDA_PREFIX
+
+
